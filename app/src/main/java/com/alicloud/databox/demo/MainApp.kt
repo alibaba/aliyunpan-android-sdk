@@ -15,22 +15,35 @@ class MainApp : Application() {
             val action = intent?.action ?: return
 
             when (AliyunpanAction.valueOf(action)) {
+                //登录成功
                 AliyunpanAction.NOTIFY_LOGIN_SUCCESS -> {
                     Toast.makeText(context, "授权成功", Toast.LENGTH_SHORT).show()
+                    // 授权成功 示例打开主页
                     context.startActivity(
                         Intent(context, MainActivity::class.java)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     )
                 }
 
-                AliyunpanAction.NOTIFY_LOGOUT,
-                AliyunpanAction.NOTIFY_LOGIN_CANCEL,
+                //注销成功
+                AliyunpanAction.NOTIFY_LOGOUT -> {
+                    Toast.makeText(context, "注销成功", Toast.LENGTH_SHORT).show()
+                }
+
+                //登录取消
+                AliyunpanAction.NOTIFY_LOGIN_CANCEL -> {
+                    Toast.makeText(context, "授权取消", Toast.LENGTH_SHORT).show()
+                }
+
+                //登录失败
                 AliyunpanAction.NOTIFY_LOGIN_FAILED -> {
                     Toast.makeText(context, "授权失败", Toast.LENGTH_SHORT).show()
                 }
 
+                //登录状态重置
                 AliyunpanAction.NOTIFY_RESET_STATUS -> {
-                    Toast.makeText(context, "授权状态重置 跳转授权页", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "授权状态重置", Toast.LENGTH_SHORT).show()
+                    // 授权状态重置 示例打开授权页
                     context.startActivity(
                         Intent(context, AuthLoginActivity::class.java)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -45,7 +58,9 @@ class MainApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 注册广播
         AliyunpanBroadcastHelper.registerReceiver(this, receive)
+        // 开始初始化
         AliyunpanApp.initApp(this)
     }
 

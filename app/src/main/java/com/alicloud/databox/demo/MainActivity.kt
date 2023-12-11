@@ -33,7 +33,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btnFileListInfo).setOnClickListener {
             getFileList(defaultDriveId, tvResult)
         }
-
     }
 
     private fun startOAuth(tvResult: TextView) {
@@ -51,11 +50,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun getDriveInfo(tvResult: TextView) {
         AliyunpanApp.aliyunpanClient?.send(AliyunpanUserScope.GetDriveInfo(),
-            {
-                tvResult.appendWithTime("GetDriveInfo success: $it")
+            { result ->
+                // 成功结果
+                tvResult.appendWithTime("GetDriveInfo success: $result")
 
-                defaultDriveId = it.data.asJSONObject().optString("default_drive_id")
+                defaultDriveId = result.data.asJSONObject().optString("default_drive_id")
             }, {
+                // 失败结果
                 tvResult.appendWithTime("GetDriveInfo failed: $it")
             })
     }
