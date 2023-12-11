@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_marginTop="28dp"
+    android:orientation="vertical">
+
+    <Button
+        android:id="@+id/btnOAuth"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="发起授权" />
+
+    <Button
+        android:id="@+id/btnOAuthClear"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="清除授权" />
+
+    <Button
+        android:id="@+id/btnUserInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="获取用户信息" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/tvResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="10dp"
+            android:text="api result:\n" />
+
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>
