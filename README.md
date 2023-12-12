@@ -1,3 +1,5 @@
+
+
 # AliyunpanSDK-Android
 
 This is the open-source SDK for Aliyunpan-Android OpenAPI.
@@ -51,7 +53,6 @@ fun initApp(context: Context) {
 aliyunpanClient.send(AliyunpanUserScope.GetDriveInfo(),
             { result ->
                 // success
-                defaultDriveId = result.data.asJSONObject().optString("default_drive_id")
             }, {
                 // failure
             })
@@ -73,18 +74,20 @@ fun initApp(context: Context) {
             .build()
         // init client
         val aliyunpanClient = AliyunpanClient.init(config)
-
-		// suspend
-		runBlocking {
-            try {
-                val response = aliyunpanClient.send(AliyunpanUserScope.GetDriveInfo())
-                response
-            } catch (e: Exception) {
-                
-            }
-        }
     }
 ```
+
+
+```
+lifecycleScope.launch {
+            try {
+                val response = aliyunpanClient.send(AliyunpanUserScope.GetDriveInfo())
+            } catch (e: Exception) {
+
+            }
+        }
+```
+
 
 ## Requirements
 - minSdk 21
