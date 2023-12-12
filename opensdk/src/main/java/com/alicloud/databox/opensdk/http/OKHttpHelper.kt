@@ -14,7 +14,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import org.json.JSONObject
 import java.io.IOException
 
-object OKHttpHelper {
+internal object OKHttpHelper {
     fun buildOKHttpClient(
         authenticatorConfig: TokenAuthenticator.TokenAuthenticatorConfig,
         httpHeaderConfig: HttpHeaderInterceptor.HttpHeaderConfig

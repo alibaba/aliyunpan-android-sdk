@@ -104,8 +104,8 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
 
     override fun fetchToken(activity: Activity) {
         val intent = activity.intent
-        val callbackCode = intent.getStringExtra(AliyunpanConstant.CALLBACK_CODE)
-        val callbackError = intent.getStringExtra(AliyunpanConstant.CALLBACK_ERROR)
+        val callbackCode = intent.getStringExtra(CALLBACK_CODE)
+        val callbackError = intent.getStringExtra(CALLBACK_ERROR)
         fetchToken(callbackCode, callbackError)
         activity.finish()
     }
@@ -268,8 +268,12 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
 
     companion object {
 
-        const val TAG = "AliyunpanClient"
+        private const val TAG = "AliyunpanClient"
 
+        const val CALLBACK_CODE = "code"
+        const val CALLBACK_ERROR = "error"
+
+        @JvmStatic
         fun init(config: AliyunpanClientConfig) = AliyunpanClient(config).also {
             LLogger.log(TAG, "init")
         }

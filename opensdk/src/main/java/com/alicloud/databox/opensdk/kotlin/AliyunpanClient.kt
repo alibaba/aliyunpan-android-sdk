@@ -42,8 +42,10 @@ class AliyunpanClient(private val client: AliyunpanClient) : AliyunpanBaseClient
 
     companion object {
 
+        private const val TAG = "AliyunpanClient-kt"
+
         fun init(config: AliyunpanClientConfig) = AliyunpanClient(AliyunpanClient.init(config)).also {
-            LLogger.log(AliyunpanClient.TAG, "kotlin init")
+            LLogger.log(TAG, "init")
         }
     }
 }

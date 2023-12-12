@@ -13,12 +13,13 @@ object AliyunpanBroadcastHelper {
     private val filter: IntentFilter = IntentFilter()
 
     init {
-        for (action in AliyunpanAction.entries) {
+        for (action in AliyunpanAction.values()) {
             filter.addAction(action.name)
         }
         filter.priority = 1000
     }
 
+    @JvmStatic
     fun registerReceiver(context: Context, receiver: BroadcastReceiver) {
         try {
             LocalBroadcastManager.getInstance(context).registerReceiver(receiver, filter)
@@ -27,6 +28,7 @@ object AliyunpanBroadcastHelper {
         }
     }
 
+    @JvmStatic
     fun unregisterReceiver(context: Context, receiver: BroadcastReceiver) {
         try {
             LocalBroadcastManager.getInstance(context).unregisterReceiver(receiver)
