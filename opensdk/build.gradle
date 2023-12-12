@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
+    id 'maven-publish'
 }
 
 android {
@@ -43,4 +44,19 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.0.0'
 
+}
+
+afterEvaluate {
+    // 官方建议使用上传方法
+    publishing {
+        publications {
+            // Creates a Maven publication called "release".
+            release(MavenPublication) {
+                from components.release
+                groupId = 'com.alibaba'
+                artifactId = 'aliyunpan'
+                version = '0.0.1'
+            }
+        }
+    }
 }
