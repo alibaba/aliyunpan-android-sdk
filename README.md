@@ -2,7 +2,17 @@
 
 This is the open-source SDK for Aliyunpan-Android OpenAPI.
 
+[![](https://jitpack.io/v/alibaba/aliyunpan-android-sdk.svg)](https://jitpack.io/#alibaba/aliyunpan-android-sdk)
+
 ## Getting Started
+
+
+```
+dependencies {
+    implementation 'com.github.alibaba:aliyunpan-android-sdk:v0.0.3'
+}
+```
+
 
 To begin using the sdk, visit our guide that will walk you through the setup process:
 
@@ -12,14 +22,72 @@ To begin using the sdk, visit our guide that will walk you through the setup pro
 
 ### 1. Create client
 
+```
+import com.alicloud.databox.opensdk.AliyunpanClient
+import com.alicloud.databox.opensdk.AliyunpanClientConfig
+
+
+fun initApp(context: Context) {
+        // recommend
+        val config = AliyunpanClientConfig.Builder(context, "app_key")
+            .build()
+
+        // not recommend
+        val config = AliyunpanClientConfig.Builder(context, "app_key")
+            .appSecret("app_secret")
+            .build()
+
+        // init client
+        aliyunpanClient = AliyunpanClient.init(config)
+    }
+
+
+```
+
 ### 2. Send Command
+
+
+```
+aliyunpanClient.send(AliyunpanUserScope.GetDriveInfo(),
+            { result ->
+                // success
+                defaultDriveId = result.data.asJSONObject().optString("default_drive_id")
+            }, {
+                // failure
+            })
+```
 
 ## Advanced Usage
 
 ### Kotlin
 
+
+```
+
+import com.alicloud.databox.opensdk.AliyunpanClientConfig
+import com.alicloud.databox.opensdk.kotlin.AliyunpanClient
+
+fun initApp(context: Context) {
+        // config
+        val config = AliyunpanClientConfig.Builder(context, "app_key")
+            .build()
+        // init client
+        val aliyunpanClient = AliyunpanClient.init(config)
+
+		// suspend
+		runBlocking {
+            try {
+                val response = aliyunpanClient.send(AliyunpanUserScope.GetDriveInfo())
+                response
+            } catch (e: Exception) {
+                
+            }
+        }
+    }
+```
+
 ## Requirements
- - minSdk 21
+- minSdk 21
 
 ## License
 
