@@ -11,7 +11,7 @@ This is the open-source SDK for Aliyunpan-Android OpenAPI.
 
 ```
 dependencies {
-    implementation 'com.github.alibaba:aliyunpan-android-sdk:v0.0.3'
+    implementation 'com.github.alibaba:aliyunpan-android-sdk:v0.1.4'
 }
 ```
 
