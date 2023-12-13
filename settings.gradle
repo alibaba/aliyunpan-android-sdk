@@ -14,6 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "smart_cloud_android_opensdk"
+rootProject.name = "aliyunpan-android-sdk"
 include ':app'
 include ':opensdk'

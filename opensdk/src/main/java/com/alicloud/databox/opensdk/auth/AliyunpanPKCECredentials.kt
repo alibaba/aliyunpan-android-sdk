@@ -4,16 +4,14 @@ import android.content.Context
 import android.util.Base64
 import com.alicloud.databox.opensdk.AliyunpanCredentials
 import com.alicloud.databox.opensdk.utils.DataStoreControl
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.security.SecureRandom
 
 /**
  * Aliyunpan PKCE credentials
- * PKCE方式 token有效期长30天 但是不支持refresh_token 只能再次授权
+ * PKCE方式 token有效期长30天
  * @constructor
  *
  * @param context
@@ -54,42 +52,26 @@ internal class AliyunpanPKCECredentials(
                         "client_id" to appId,
                         "bundle_id" to context.packageName,
                         "scope" to scope,
-                        "code_challenge" to getCodeChallenge(),
-                        "code_challenge_method" to getCodeChallengeMethod(),
                         "redirect_uri" to "oob",
                         "response_type" to "code",
                         "source" to "app",
+                        "code_challenge" to getCodeChallenge(),
+                        "code_challenge_method" to getCodeChallengeMethod(),
                     )
                 )
             )
             .build()
     }
 
-    override fun getTokenRequest(authCode: String): Request {
-        return Request.Builder()
-            .url(buildUrl("oauth/access_token"))
-            .post(
-                JSONObject(
-                    mapOf(
-                        "client_id" to appId,
-                        "grant_type" to "authorization_code",
-                        "code" to authCode,
-                        "code_verifier" to getCodeVerifier(),
-                    )
-                )
-                    .toString()
-                    .toRequestBody("application/json".toMediaType())
+    override fun getTokenRequest(authCode: String): JSONObject {
+        return JSONObject(
+            mapOf(
+                "client_id" to appId,
+                "grant_type" to "authorization_code",
+                "code" to authCode,
+                "code_verifier" to getCodeVerifier(),
             )
-            .build()
-    }
-
-    /**
-     * Refresh token
-     * 目前pkce不支持 refresh token操作
-     * @return
-     */
-    override fun getRefreshTokenRequest(): Request? {
-        return null
+        )
     }
 
     override fun getAccessToken(): String? {

@@ -24,26 +24,36 @@ To begin using the sdk, visit our guide that will walk you through the setup pro
 
 ### 1. Create client
 
+#### PKCE (recommend)
 ```
 import com.alicloud.databox.opensdk.AliyunpanClient
 import com.alicloud.databox.opensdk.AliyunpanClientConfig
 
 
 fun initApp(context: Context) {
-        // recommend
         val config = AliyunpanClientConfig.Builder(context, "app_key")
             .build()
-
-        // not recommend
-        val config = AliyunpanClientConfig.Builder(context, "app_key")
-            .appSecret("app_secret")
-            .build()
-
         // init client
-        aliyunpanClient = AliyunpanClient.init(config)
+        val aliyunpanClient = AliyunpanClient.init(config)
     }
 
 
+```
+
+#### Server
+
+```
+import com.alicloud.databox.opensdk.AliyunpanClient
+import com.alicloud.databox.opensdk.AliyunpanClientConfig
+import com.alicloud.databox.opensdk.AliyunpanTokenServer
+
+val config = AliyunpanClientConfig.Builder(context, "app_key")
+            .tokenServer(object : AliyunpanTokenServer {
+                // implement some one
+            })
+            .build()
+        // init client
+        val aliyunpanClient = AliyunpanClient.init(config)
 ```
 
 ### 2. Send Command
@@ -65,7 +75,6 @@ aliyunpanClient.send(AliyunpanUserScope.GetDriveInfo(),
 
 ```
 
-import com.alicloud.databox.opensdk.AliyunpanClientConfig
 import com.alicloud.databox.opensdk.kotlin.AliyunpanClient
 
 fun initApp(context: Context) {

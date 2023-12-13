@@ -4,7 +4,7 @@ import android.util.Log
 
 internal object LLogger {
 
-    private const val TAG = "Aliyunpan"
+    private const val TAG = "AliyunpanSdk"
 
     fun log(tag: String, msg: String) {
         Log.d(TAG, "$tag $msg")

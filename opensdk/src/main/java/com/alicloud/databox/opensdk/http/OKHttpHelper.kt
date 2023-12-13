@@ -28,15 +28,9 @@ internal object OKHttpHelper {
         }
         .build()
 
-    private val handler = Handler(Looper.myLooper()!!)
-
-    fun OkHttpClient.execute(request: Request): ResultResponse {
-        val response = this.newCall(request).execute()
-        return buildResultResponse(response)
-    }
-
     fun OkHttpClient.enqueue(
         request: Request,
+        handler: Handler,
         onSuccess: Consumer<ResultResponse>,
         onFailure: Consumer<Exception>
     ) {

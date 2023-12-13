@@ -13,6 +13,7 @@ class MainApp : Application() {
     private val receive: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent?) {
             val action = intent?.action ?: return
+            val message = intent.getStringExtra("message")
 
             when (AliyunpanAction.valueOf(action)) {
                 //登录成功
@@ -25,9 +26,9 @@ class MainApp : Application() {
                     )
                 }
 
-                //注销成功
+                //登出
                 AliyunpanAction.NOTIFY_LOGOUT -> {
-                    Toast.makeText(context, "注销成功", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "登录状态失效", Toast.LENGTH_SHORT).show()
                 }
 
                 //登录取消
@@ -37,7 +38,7 @@ class MainApp : Application() {
 
                 //登录失败
                 AliyunpanAction.NOTIFY_LOGIN_FAILED -> {
-                    Toast.makeText(context, "授权失败", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "授权失败 message=$message", Toast.LENGTH_SHORT).show()
                 }
 
                 //登录状态重置

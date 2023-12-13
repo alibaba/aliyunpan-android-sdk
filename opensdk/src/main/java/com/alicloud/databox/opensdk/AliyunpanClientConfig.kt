@@ -3,7 +3,7 @@ package com.alicloud.databox.opensdk
 import android.content.Context
 import android.os.Build
 import com.alicloud.databox.opensdk.auth.AliyunpanPKCECredentials
-import com.alicloud.databox.opensdk.auth.AliyunpanSecretCredentials
+import com.alicloud.databox.opensdk.auth.AliyunpanServerCredentials
 import com.alicloud.databox.opensdk.http.HttpHeaderInterceptor
 
 class AliyunpanClientConfig private constructor(
@@ -48,9 +48,11 @@ class AliyunpanClientConfig private constructor(
 
         private val context: Context
         private val appId: String
-        private var appSecret: String? = null
 
-        // 默认用户标识
+        /**
+         * Identifier
+         * 默认用户标识
+         */
         private var identifier: String = "sdk_user"
 
         /**
@@ -61,25 +63,29 @@ class AliyunpanClientConfig private constructor(
         private var scope: String = "user:base,file:all:read"
 
         private val baseApi = "openapi.alipan.com"
+//        private val baseApi = "stg-openapi.alipan.com"
+
+        private var tokenServer: AliyunpanTokenServer? = null
 
         constructor(context: Context, appId: String) {
             this.context = context.applicationContext
             this.appId = appId
         }
 
-        fun appSecret(appSecret: String) = apply { this.appSecret = appSecret }
-
         fun scope(scope: String) = apply { this.scope = scope }
 
         fun setIdentifier(identifier: String) = apply { this.identifier = identifier }
 
+        fun tokenServer(tokenServer: AliyunpanTokenServer) = apply { this.tokenServer = tokenServer }
+
         fun build(): AliyunpanClientConfig {
-            val secret = appSecret
-            val credentials = if (secret.isNullOrEmpty()) {
+            val aliyunpanTokenServer = tokenServer
+            val credentials = if (aliyunpanTokenServer == null) {
                 AliyunpanPKCECredentials(context, appId, identifier, baseApi)
             } else {
-                AliyunpanSecretCredentials(context, appId, secret, identifier, baseApi)
+                AliyunpanServerCredentials(context, appId, identifier, baseApi, aliyunpanTokenServer)
             }
+
             return AliyunpanClientConfig(
                 context,
                 scope,

@@ -5,15 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import android.os.Handler
+import android.os.Looper
 import com.alicloud.databox.opensdk.AliyunpanException.Companion.buildError
 import com.alicloud.databox.opensdk.http.OKHttpHelper
 import com.alicloud.databox.opensdk.http.OKHttpHelper.enqueue
-import com.alicloud.databox.opensdk.http.OKHttpHelper.execute
 import com.alicloud.databox.opensdk.http.TokenAuthenticator
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -23,9 +20,9 @@ import org.json.JSONObject
 class AliyunpanClient private constructor(private val config: AliyunpanClientConfig) : AliyunpanBaseClient,
     TokenAuthenticator.TokenAuthenticatorConfig {
 
-    private val okHttpInstance = OKHttpHelper.buildOKHttpClient(this, config)
+    private val handler = Handler(Looper.myLooper()!!)
 
-    private val mutex = Mutex()
+    private val okHttpInstance = OKHttpHelper.buildOKHttpClient(this, config)
 
     init {
         val context = config.context
@@ -59,6 +56,7 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
         }
 
         okHttpInstance.enqueue(credentials.getOAuthRequest(config.scope),
+            handler,
             {
                 val jsonObject = it.data.asJSONObject()
                 val redirectUri = jsonObject.optString("redirectUri")
@@ -113,10 +111,9 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
     private fun fetchToken(code: String?, error: String?) {
 
         val context = config.context
-        LocalBroadcastManager.getInstance(context).sendBroadcast(Intent(""))
         if (!error.isNullOrEmpty()) {
             LLogger.log(TAG, "fetchToken error = $error")
-            AliyunpanBroadcastHelper.sentBroadcast(context, AliyunpanAction.NOTIFY_LOGIN_CANCEL, "error = $error")
+            AliyunpanBroadcastHelper.sentBroadcast(context, AliyunpanAction.NOTIFY_LOGIN_CANCEL, "$error")
             return
         }
 
@@ -130,51 +127,61 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
             return
         }
         val credentials = config.credentials
-        okHttpInstance.enqueue(credentials.getTokenRequest(code),
-            {
+        val requestJson = credentials.getTokenRequest(code)
+
+        if (requestJson != null) {
+            val request = Request.Builder()
+                .url(credentials.buildUrl("oauth/access_token"))
+                .post(
+                    requestJson
+                        .toString()
+                        .toRequestBody("application/json".toMediaType())
+                )
+                .build()
+            okHttpInstance.enqueue(request, handler, {
                 try {
                     credentials.updateAccessToken(it.data.asJSONObject())
-                    LLogger.log(TAG, "fetchToken success")
+                    LLogger.log(TAG, "fetchToken getTokenRequest success")
                     AliyunpanBroadcastHelper.sentBroadcast(context, AliyunpanAction.NOTIFY_LOGIN_SUCCESS)
                 } catch (e: Exception) {
-                    LLogger.log(TAG, "fetchToken failed", e)
+                    LLogger.log(TAG, "fetchToken getTokenRequest failed", e)
                     AliyunpanBroadcastHelper.sentBroadcast(context, AliyunpanAction.NOTIFY_LOGIN_FAILED, e.message)
                 }
             }, {
-                LLogger.log(TAG, "fetchToken failed", it)
+                LLogger.log(TAG, "fetchToken getTokenRequest failed", it)
                 AliyunpanBroadcastHelper.sentBroadcast(context, AliyunpanAction.NOTIFY_LOGIN_FAILED, it.message)
             })
-    }
+            return
+        }
 
-    override fun refreshToken(authorization: String?): String? {
-        val credentials = config.credentials
-        val context = config.context
-        return runBlocking {
-            mutex.withLock {
-                val request = credentials.getRefreshTokenRequest()
-                if (request == null) {
-                    null
-                } else {
-                    val currentToken = config.getConfigAuthorization()
-                    // 旧的token 需要刷新
-                    if (currentToken == authorization) {
-                        try {
-                            val response = okHttpInstance.execute(request)
-                            credentials.updateAccessToken(response.data.asJSONObject())
-                            AliyunpanBroadcastHelper.sentBroadcast(context, AliyunpanAction.NOTIFY_REFRESH_COOKIES)
-                        } catch (e: Exception) {
-                            LLogger.log(TAG, "refreshToken execute", e)
-                        }
-                        config.getConfigAuthorization()
-                    } else {
-                        currentToken
+        credentials.getToken(code) { value ->
+            handler.post {
+                if (value != null) {
+                    try {
+                        credentials.updateAccessToken(value)
+                        LLogger.log(TAG, "fetchToken getToken success")
+                        AliyunpanBroadcastHelper.sentBroadcast(context, AliyunpanAction.NOTIFY_LOGIN_SUCCESS)
+                    } catch (e: Exception) {
+                        LLogger.log(TAG, "fetchToken getToken failed", e)
+                        AliyunpanBroadcastHelper.sentBroadcast(
+                            context,
+                            AliyunpanAction.NOTIFY_LOGIN_FAILED,
+                            e.message
+                        )
                     }
+                } else {
+                    LLogger.log(TAG, "fetchToken TokenServer not implement")
+                    AliyunpanBroadcastHelper.sentBroadcast(
+                        context,
+                        AliyunpanAction.NOTIFY_LOGIN_FAILED,
+                        "TokenServer not implement"
+                    )
                 }
             }
         }
     }
 
-    override fun oauthInvalid() {
+    override fun authInvalid() {
         AliyunpanBroadcastHelper.sentBroadcast(config.context, AliyunpanAction.NOTIFY_LOGOUT)
     }
 
@@ -204,7 +211,7 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
      * @param onFailure 主线程上的失败回调
      */
     fun send(request: Request, onSuccess: Consumer<ResultResponse>, onFailure: Consumer<Exception>) {
-        okHttpInstance.enqueue(request, onSuccess, onFailure)
+        okHttpInstance.enqueue(request, handler, onSuccess, onFailure)
     }
 
     private fun buildRequest(scope: AliyunpanScope): Request? {

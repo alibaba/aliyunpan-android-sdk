@@ -31,9 +31,9 @@ data class AuthModel private constructor(val accessToken: String, val refreshTok
         const val EXPIRED = "expired"
 
         fun parse(jsonObject: JSONObject): AuthModel {
-            val accessToken = jsonObject.optString(ACCESS_TOKEN)
-            val refreshToken = jsonObject.optString(REFRESH_TOKEN)
-            val expiresIn = jsonObject.optLong(EXPIRES_IN)
+            val accessToken = jsonObject.getString(ACCESS_TOKEN)
+            val refreshToken = jsonObject.getString(REFRESH_TOKEN)
+            val expiresIn = jsonObject.getLong(EXPIRES_IN)
 
             val expired = System.currentTimeMillis() + (expiresIn * 1000)
             return AuthModel(

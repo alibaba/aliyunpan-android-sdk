@@ -5,17 +5,14 @@ import okhttp3.HttpUrl
 import okhttp3.Request
 import org.json.JSONObject
 
-abstract class AliyunpanCredentials(val context: Context, val appId: String, val baseAuthApi: String) {
+abstract class AliyunpanCredentials(val context: Context, val appId: String, private val baseAuthApi: String) :
+    AliyunpanTokenServer {
 
     abstract fun preCheckTokenValid(): Boolean
 
     abstract fun clearToken()
 
     abstract fun getOAuthRequest(scope: String): Request
-
-    abstract fun getTokenRequest(authCode: String): Request
-
-    abstract fun getRefreshTokenRequest(): Request?
 
     abstract fun getAccessToken(): String?
 
