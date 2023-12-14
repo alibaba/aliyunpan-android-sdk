@@ -63,7 +63,6 @@ class AliyunpanClientConfig private constructor(
         private var scope: String = "user:base,file:all:read"
 
         private val baseApi = "openapi.alipan.com"
-//        private val baseApi = "stg-openapi.alipan.com"
 
         private var tokenServer: AliyunpanTokenServer? = null
 
