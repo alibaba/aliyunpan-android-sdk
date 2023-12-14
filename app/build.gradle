@@ -35,22 +35,38 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    flavorDimensions += "type"
+
+    productFlavors {
+
+        create("callback") {
+            dimension = "type"
+        }
+
+        create("coroutines") {
+            dimension = "type"
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
     kotlinOptions {
         jvmTarget = '1.8'
     }
+
     buildFeatures {
         viewBinding true
     }
 }
 
 dependencies {
-    implementation project(":opensdk")
+//    implementation project(":opensdk")
     implementation "com.squareup.okhttp3:okhttp:4.11.0"
-//    implementation 'com.github.alibaba:aliyunpan-android-sdk:v0.0.3'
+    implementation 'com.github.alibaba:aliyunpan-android-sdk:v0.1.4'
 
     implementation 'androidx.core:core-ktx:1.7.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
