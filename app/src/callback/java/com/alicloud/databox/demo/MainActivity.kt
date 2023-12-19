@@ -5,12 +5,14 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.alicloud.databox.demo.ViewHelper.appendWithTime
+import com.alicloud.databox.opensdk.io.BaseTask
 import com.alicloud.databox.opensdk.scope.AliyunpanFileScope
 import com.alicloud.databox.opensdk.scope.AliyunpanUserScope
 
 class MainActivity : AppCompatActivity() {
 
     private var defaultDriveId: String? = null
+    private var fileId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,6 +34,10 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.btnFileListInfo).setOnClickListener {
             getFileList(defaultDriveId, tvResult)
+        }
+
+        findViewById<View>(R.id.btnFileDownload).setOnClickListener {
+            startDownloadFile(defaultDriveId, fileId, tvResult)
         }
     }
 
@@ -66,10 +72,56 @@ class MainActivity : AppCompatActivity() {
             return
         }
         AliyunpanApp.aliyunpanClient
-            ?.send(AliyunpanFileScope.GetFileList(driveId, parentFileId = "root", fields = "*", limit = 2), {
-                tvResult.appendWithTime("GetFileList success: $it")
-            }, {
-                tvResult.appendWithTime("GetFileList failed: $it")
-            })
+            ?.send(
+                AliyunpanFileScope.GetFileList(
+                    driveId,
+                    parentFileId = "root",
+                    fields = "*",
+                    limit = 2,
+                    type = "file",
+                    orderBy = "size",
+                    orderDirection = "ASC"
+                ), {
+                    tvResult.appendWithTime("GetFileList success: $it")
+
+                    val items = it.data.asJSONObject().optJSONArray("items")
+                    fileId = items.getJSONObject(0).optString("file_id")
+
+                }, {
+                    tvResult.appendWithTime("GetFileList failed: $it")
+                })
+    }
+
+    private fun startDownloadFile(defaultDriveId: String?, fileId: String?, tvResult: TextView) {
+        AliyunpanApp.aliyunpanClient?.buildDownload(defaultDriveId ?: "", fileId ?: "", { task ->
+            tvResult.appendWithTime("buildDownload success $task")
+            task.addStateChange { taskState ->
+                when (taskState) {
+                    BaseTask.TaskState.Abort -> {
+                        tvResult.appendWithTime("taskState Abort ")
+                    }
+
+                    is BaseTask.TaskState.Completed -> {
+                        tvResult.appendWithTime("taskState Completed ${taskState.filePath}")
+                    }
+
+                    is BaseTask.TaskState.Failed -> {
+                        tvResult.appendWithTime("taskState Failed ${taskState.exception}")
+                    }
+
+                    is BaseTask.TaskState.Running -> {
+                        tvResult.appendWithTime("taskState Running ${taskState.completedChunkSize}/${taskState.totalChunkSize} Progress=${taskState.getProgress()}")
+                    }
+
+                    BaseTask.TaskState.Waiting -> {
+                        tvResult.appendWithTime("taskState Waiting")
+                    }
+                }
+            }
+            val startResult = task.start()
+            tvResult.appendWithTime("start task = $task startResult = $startResult")
+        }, {
+            tvResult.appendWithTime("buildDownload failed $it")
+        })
     }
 }

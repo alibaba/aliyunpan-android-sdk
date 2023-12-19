@@ -5,12 +5,14 @@ import android.os.Build
 import com.alicloud.databox.opensdk.auth.AliyunpanPKCECredentials
 import com.alicloud.databox.opensdk.auth.AliyunpanServerCredentials
 import com.alicloud.databox.opensdk.http.HttpHeaderInterceptor
+import java.io.File
 
 class AliyunpanClientConfig private constructor(
     internal val context: Context,
     internal val scope: String,
     internal val baseApi: String,
-    internal val credentials: AliyunpanCredentials
+    internal val credentials: AliyunpanCredentials,
+    internal val downloadFolderPath: String
 ) : HttpHeaderInterceptor.HttpHeaderConfig {
 
     private val userAgent: String by lazy {
@@ -41,7 +43,7 @@ class AliyunpanClientConfig private constructor(
 
     companion object {
 
-        private const val USER_AGENT_FORMAT = "%s/%s (%s; build:{%s}; Android %s) AliyunpanSDK/%s"
+        private const val USER_AGENT_FORMAT = "%s/%s (%s; build:%s; Android %s) AliyunpanSDK/%s"
     }
 
     class Builder {
@@ -66,6 +68,8 @@ class AliyunpanClientConfig private constructor(
 
         private var tokenServer: AliyunpanTokenServer? = null
 
+        private var downloadFolderPath: String = ""
+
         constructor(context: Context, appId: String) {
             this.context = context.applicationContext
             this.appId = appId
@@ -76,6 +80,20 @@ class AliyunpanClientConfig private constructor(
         fun setIdentifier(identifier: String) = apply { this.identifier = identifier }
 
         fun tokenServer(tokenServer: AliyunpanTokenServer) = apply { this.tokenServer = tokenServer }
+
+        /**
+         * Down folder
+         * 配置文件下载文件夹路径，下载时注意文件读写权限授予
+         * @param downloadFolderPath 下载文件夹路径
+         */
+        fun downFolder(downloadFolderPath: String) = apply { this.downloadFolderPath = downloadFolderPath }
+
+        /**
+         * Down folder
+         * 配置文件下载文件夹，下载时注意文件读写权限授予
+         * @param downloadFolder 下载文件夹
+         */
+        fun downFolder(downloadFolder: File) = apply { this.downloadFolderPath = downloadFolder.absolutePath }
 
         fun build(): AliyunpanClientConfig {
             val aliyunpanTokenServer = tokenServer
@@ -89,7 +107,8 @@ class AliyunpanClientConfig private constructor(
                 context,
                 scope,
                 baseApi,
-                credentials
+                credentials,
+                downloadFolderPath
             )
         }
     }

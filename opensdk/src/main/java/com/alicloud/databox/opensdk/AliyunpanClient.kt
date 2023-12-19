@@ -8,19 +8,25 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import com.alicloud.databox.opensdk.AliyunpanException.Companion.buildError
+import com.alicloud.databox.opensdk.io.AliyunpanDownloader
 import com.alicloud.databox.opensdk.http.OKHttpHelper
 import com.alicloud.databox.opensdk.http.OKHttpHelper.enqueue
+import com.alicloud.databox.opensdk.http.OKHttpHelper.execute
 import com.alicloud.databox.opensdk.http.TokenAuthenticator
+import com.alicloud.databox.opensdk.io.BaseTask
 import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import kotlin.jvm.Throws
 
 class AliyunpanClient private constructor(private val config: AliyunpanClientConfig) : AliyunpanBaseClient,
     TokenAuthenticator.TokenAuthenticatorConfig {
 
-    private val handler = Handler(Looper.myLooper()!!)
+    internal val handler = Handler(Looper.myLooper()!!)
+
+    private val downloader: AliyunpanDownloader by lazy { AliyunpanDownloader(this, config.downloadFolderPath) }
 
     private val okHttpInstance = OKHttpHelper.buildOKHttpClient(this, config)
 
@@ -203,6 +209,17 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
         send(request, onSuccess, onFailure)
     }
 
+    @Throws(Exception::class)
+    internal fun sendSync(scope: AliyunpanScope): ResultResponse {
+        val request = buildRequest(scope)
+        if (request == null) {
+            val exception = AliyunpanException.CODE_REQUEST_INVALID.buildError("build request failed")
+            LLogger.log(TAG, "sendSync failed", exception)
+            throw exception
+        }
+        return okHttpInstance.execute(request)
+    }
+
     /**
      * Send 发送请求
      *
@@ -212,6 +229,38 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
      */
     fun send(request: Request, onSuccess: Consumer<ResultResponse>, onFailure: Consumer<Exception>) {
         okHttpInstance.enqueue(request, handler, onSuccess, onFailure)
+    }
+
+    fun buildDownload(
+        driveId: String,
+        fileId: String,
+        onSuccess: Consumer<BaseTask>,
+        onFailure: Consumer<Exception>
+    ) {
+        this.buildDownload(driveId, fileId, null, onSuccess, onFailure)
+    }
+
+    /**
+     * Build download
+     *
+     * @param driveId
+     * @param fileId
+     * @param expireSec 下载地址过期时间 单位秒 默认900秒
+     * @param onSuccess
+     * @param onFailure
+     */
+    fun buildDownload(
+        driveId: String,
+        fileId: String,
+        expireSec: Int? = null,
+        onSuccess: Consumer<BaseTask>,
+        onFailure: Consumer<Exception>
+    ) {
+        if (expireSec != null && expireSec <= 0) {
+            onFailure.accept(AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("expireSec must be more than 0"))
+            return
+        }
+        downloader.buildDownload(driveId, fileId, expireSec, onSuccess, onFailure)
     }
 
     private fun buildRequest(scope: AliyunpanScope): Request? {

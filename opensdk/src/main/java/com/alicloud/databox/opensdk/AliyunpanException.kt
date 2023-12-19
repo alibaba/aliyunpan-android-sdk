@@ -13,6 +13,8 @@ open class AliyunpanException(open val code: String, override val message: Strin
 
         const val CODE_REQUEST_INVALID = "RequestInvalid"
 
+        const val CODE_DOWNLOAD_ERROR = "DownloadError"
+
         inline fun String.buildError(message: String) = AliyunpanException(this, message)
     }
 }
