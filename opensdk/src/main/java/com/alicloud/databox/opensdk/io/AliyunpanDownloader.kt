@@ -27,7 +27,7 @@ import kotlin.math.ceil
  * @property downloadFolderPath
  * @constructor Create empty Aliyunpan downloader
  */
-internal class AliyunpanDownloader(private val client: AliyunpanClient, private val downloadFolderPath: String) {
+internal class AliyunpanDownloader(private val client: AliyunpanClient, private val downloadFolderPath: String){
 
     private val handler = client.handler
 

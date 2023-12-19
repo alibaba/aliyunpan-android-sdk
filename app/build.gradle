@@ -16,7 +16,7 @@ android {
     defaultConfig {
         applicationId "com.alicloud.databox.demo"
         minSdk 24
-        targetSdk 34
+        targetSdk 31
         versionCode 1
         versionName "1.0"
 

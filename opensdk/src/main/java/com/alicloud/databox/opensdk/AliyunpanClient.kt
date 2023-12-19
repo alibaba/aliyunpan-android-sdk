@@ -8,25 +8,34 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import com.alicloud.databox.opensdk.AliyunpanException.Companion.buildError
-import com.alicloud.databox.opensdk.io.AliyunpanDownloader
 import com.alicloud.databox.opensdk.http.OKHttpHelper
 import com.alicloud.databox.opensdk.http.OKHttpHelper.enqueue
 import com.alicloud.databox.opensdk.http.OKHttpHelper.execute
 import com.alicloud.databox.opensdk.http.TokenAuthenticator
+import com.alicloud.databox.opensdk.io.AliyunpanDownloader
 import com.alicloud.databox.opensdk.io.BaseTask
 import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import kotlin.jvm.Throws
 
 class AliyunpanClient private constructor(private val config: AliyunpanClientConfig) : AliyunpanBaseClient,
     TokenAuthenticator.TokenAuthenticatorConfig {
 
     internal val handler = Handler(Looper.myLooper()!!)
 
-    private val downloader: AliyunpanDownloader by lazy { AliyunpanDownloader(this, config.downloadFolderPath) }
+    private val downloader: AliyunpanDownloader? by lazy {
+        val downloadFolderPath = config.downloadFolderPath
+        if (downloadFolderPath.isNullOrEmpty()) {
+            null
+        } else {
+            AliyunpanDownloader(
+                this,
+                downloadFolderPath
+            )
+        }
+    }
 
     private val okHttpInstance = OKHttpHelper.buildOKHttpClient(this, config)
 
@@ -256,6 +265,12 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
         onSuccess: Consumer<BaseTask>,
         onFailure: Consumer<Exception>
     ) {
+        val downloader = downloader
+        if (downloader == null) {
+            onFailure.accept(AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("downloader is null, must be config download folder"))
+            return
+        }
+
         if (expireSec != null && expireSec <= 0) {
             onFailure.accept(AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("expireSec must be more than 0"))
             return

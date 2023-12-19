@@ -6,6 +6,7 @@ import com.alicloud.databox.opensdk.AliyunpanClientConfig
 import com.alicloud.databox.opensdk.AliyunpanScope
 import com.alicloud.databox.opensdk.LLogger
 import com.alicloud.databox.opensdk.ResultResponse
+import com.alicloud.databox.opensdk.io.BaseTask
 import okhttp3.Request
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -37,6 +38,18 @@ class AliyunpanClient(private val client: AliyunpanClient) : AliyunpanBaseClient
                 { continuation.resume(it) },
                 { continuation.resumeWithException(it) }
             )
+        }
+    }
+
+    suspend fun buildDownload(
+        driveId: String,
+        fileId: String,
+        expireSec: Int? = null,
+    ): BaseTask {
+        return suspendCoroutine { continuation ->
+            client.buildDownload(driveId, fileId, expireSec,
+                { continuation.resume(it) },
+                { continuation.resumeWithException(it) })
         }
     }
 

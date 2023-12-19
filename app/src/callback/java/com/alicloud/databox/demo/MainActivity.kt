@@ -94,7 +94,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun startDownloadFile(defaultDriveId: String?, fileId: String?, tvResult: TextView) {
         AliyunpanApp.aliyunpanClient?.buildDownload(defaultDriveId ?: "", fileId ?: "", { task ->
+            // 构建下载任务成功
             tvResult.appendWithTime("buildDownload success $task")
+            // 先添加任务状态通知
             task.addStateChange { taskState ->
                 when (taskState) {
                     BaseTask.TaskState.Abort -> {
@@ -118,6 +120,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             }
+            // 开始下载 如果当前任务运行中 返回false
             val startResult = task.start()
             tvResult.appendWithTime("start task = $task startResult = $startResult")
         }, {
