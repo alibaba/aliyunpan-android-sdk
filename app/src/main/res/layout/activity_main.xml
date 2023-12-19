@@ -37,6 +37,12 @@
         android:layout_height="wrap_content"
         android:text="获取文件列表" />
 
+    <Button
+        android:id="@+id/btnFileDownload"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="下载文件" />
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content">

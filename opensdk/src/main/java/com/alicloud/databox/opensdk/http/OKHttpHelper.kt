@@ -1,10 +1,12 @@
 package com.alicloud.databox.opensdk.http
 
 import android.os.Handler
-import android.os.Looper
+import com.alicloud.databox.opensdk.AliyunpanException
+import com.alicloud.databox.opensdk.AliyunpanException.Companion.buildError
 import com.alicloud.databox.opensdk.BuildConfig
 import com.alicloud.databox.opensdk.Consumer
 import com.alicloud.databox.opensdk.ResultResponse
+import com.alicloud.databox.opensdk.io.BufferRandomAccessFile
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -12,9 +14,13 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import org.json.JSONObject
+import java.io.File
 import java.io.IOException
+import java.io.InputStream
 
 internal object OKHttpHelper {
+
+    private const val NOTIFY_SIZE_THRESHOLD: Long = 512
     fun buildOKHttpClient(
         authenticatorConfig: TokenAuthenticator.TokenAuthenticatorConfig,
         httpHeaderConfig: HttpHeaderInterceptor.HttpHeaderConfig
@@ -27,6 +33,12 @@ internal object OKHttpHelper {
             }
         }
         .build()
+
+    @Throws(Exception::class)
+    fun OkHttpClient.execute(request: Request): ResultResponse {
+        val response = this.newCall(request).execute()
+        return buildResultResponse(response)
+    }
 
     fun OkHttpClient.enqueue(
         request: Request,
@@ -68,5 +80,61 @@ internal object OKHttpHelper {
             )
         }
         throw buildAHttpException(response)
+    }
+
+    @Throws(AliyunpanException::class)
+    fun OkHttpClient.download(url: String, start: Long, end: Long, downloadTempFile: File, listener: Consumer<Long>?) {
+        val rangeHeader = "bytes=" + start + "-" + if (end < 0) "" else end
+        val request: Request = Request.Builder()
+            .addHeader("Range", rangeHeader)
+            .url(url)
+            .build()
+
+        var response: Response? = null
+        var inputStream: InputStream? = null
+        var randomAccessFile: BufferRandomAccessFile? = null
+
+        try {
+            response = this.newCall(request).execute()
+            if (!response.isSuccessful) {
+                throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("download not success")
+            }
+
+            val body = response.body
+            if (body == null) {
+                throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("download body is null")
+            }
+
+            inputStream = body.byteStream()
+            randomAccessFile = BufferRandomAccessFile(downloadTempFile)
+
+            var size: Int
+            var notifySize: Long = 0
+            var addUpNotifySize = 0
+            val buff = ByteArray(1024)
+            randomAccessFile?.seek(start)
+
+            while (inputStream.read(buff).also { size = it } != -1) {
+                randomAccessFile.write(buff, 0, size)
+                notifySize += size
+                if (notifySize >= NOTIFY_SIZE_THRESHOLD) {
+                    listener?.accept(notifySize)
+                    notifySize = 0
+                }
+                addUpNotifySize += size
+
+                randomAccessFile.flushAndSync()
+            }
+            if (notifySize > 0) {
+                listener?.accept(notifySize)
+            }
+            randomAccessFile?.flushAndSync()
+        } catch (e: IOException) {
+            throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError(e.message ?: "download error")
+        } finally {
+            response?.close()
+            inputStream?.close()
+            randomAccessFile?.close()
+        }
     }
 }
