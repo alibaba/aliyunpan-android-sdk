@@ -16,8 +16,9 @@ class AuthLoginActivity : AppCompatActivity() {
     }
 
     private fun startOAuth() {
+        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
         val context = this
-        AliyunpanApp.aliyunpanClient?.oauth({
+        aliyunpanClient.oauth({
             Toast.makeText(context, "开始授权", Toast.LENGTH_SHORT).show()
         }, {
             Toast.makeText(context, "发起授权失败", Toast.LENGTH_SHORT).show()

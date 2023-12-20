@@ -42,7 +42,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startOAuth(tvResult: TextView) {
-        AliyunpanApp.aliyunpanClient?.oauth({
+        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
+        aliyunpanClient.oauth({
             tvResult.appendWithTime("oauth start")
         }, {
             tvResult.appendWithTime("oauth failed: $it")
@@ -50,12 +51,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun clearOAuth(tvResult: TextView) {
-        AliyunpanApp.aliyunpanClient?.clearOauth()
+        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
+        aliyunpanClient.clearOauth()
         tvResult.appendWithTime("clear oauth")
     }
 
     private fun getDriveInfo(tvResult: TextView) {
-        AliyunpanApp.aliyunpanClient?.send(AliyunpanUserScope.GetDriveInfo(),
+        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
+        aliyunpanClient.send(AliyunpanUserScope.GetDriveInfo(),
             { result ->
                 // 成功结果
                 tvResult.appendWithTime("GetDriveInfo success: $result")
@@ -68,32 +71,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getFileList(driveId: String?, tvResult: TextView) {
-        if (driveId.isNullOrEmpty()) {
-            return
-        }
-        AliyunpanApp.aliyunpanClient
-            ?.send(
-                AliyunpanFileScope.GetFileList(
-                    driveId,
-                    parentFileId = "root",
-                    fields = "*",
-                    limit = 2,
-                    type = "file",
-                    orderBy = "size",
-                    orderDirection = "ASC"
-                ), {
-                    tvResult.appendWithTime("GetFileList success: $it")
+        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
 
-                    val items = it.data.asJSONObject().optJSONArray("items")
-                    fileId = items.getJSONObject(0).optString("file_id")
+        aliyunpanClient.send(AliyunpanFileScope.GetFileList(
+            driveId ?: "",
+            parentFileId = "root",
+            fields = "*",
+            limit = 2,
+            type = "file",
+            orderBy = "size",
+            orderDirection = "ASC"
+        ), {
+            tvResult.appendWithTime("GetFileList success: $it")
 
-                }, {
-                    tvResult.appendWithTime("GetFileList failed: $it")
-                })
+            val items = it.data.asJSONObject().optJSONArray("items")
+            fileId = items.getJSONObject(0).optString("file_id")
+
+        }, {
+            tvResult.appendWithTime("GetFileList failed: $it")
+        })
     }
 
     private fun startDownloadFile(defaultDriveId: String?, fileId: String?, tvResult: TextView) {
-        AliyunpanApp.aliyunpanClient?.buildDownload(defaultDriveId ?: "", fileId ?: "", { task ->
+        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
+        aliyunpanClient.buildDownload(defaultDriveId ?: "", fileId ?: "", { task ->
             // 构建下载任务成功
             tvResult.appendWithTime("buildDownload success $task")
             // 先添加任务状态通知

@@ -46,26 +46,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun startOAuth(tvResult: TextView) {
         lifecycleScope.launch {
-            try {
-                AliyunpanApp.aliyunpanClient?.oauth()
+            val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return@launch
+            Result.runCatching {
+                aliyunpanClient.oauth()
+            }.onSuccess {
                 tvResult.appendWithTime("oauth start")
-            } catch (e: Exception) {
-                tvResult.appendWithTime("oauth failed: $e")
+            }.onFailure {
+                tvResult.appendWithTime("oauth failed: $it")
             }
         }
     }
 
     private fun clearOAuth(tvResult: TextView) {
-        AliyunpanApp.aliyunpanClient?.clearOauth()
+        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
+        aliyunpanClient.clearOauth()
         tvResult.appendWithTime("clear oauth")
     }
 
     private fun getDriveInfo(tvResult: TextView) {
         lifecycleScope.launch {
+            val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return@launch
             try {
-                val response = AliyunpanApp.aliyunpanClient?.send(AliyunpanUserScope.GetDriveInfo())
+                val response = aliyunpanClient.send(AliyunpanUserScope.GetDriveInfo())
                 tvResult.appendWithTime("GetDriveInfo success: $response")
-                defaultDriveId = response?.data?.asJSONObject()?.optString("default_drive_id")
+                defaultDriveId = response.data.asJSONObject().optString("default_drive_id")
             } catch (e: Exception) {
                 tvResult.appendWithTime("GetDriveInfo failed: $e")
             }
@@ -73,15 +77,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getFileList(driveId: String?, tvResult: TextView) {
-        if (driveId.isNullOrEmpty()) {
-            return
-        }
-
         lifecycleScope.launch {
+            val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return@launch
             try {
-                val response = AliyunpanApp.aliyunpanClient?.send(
+                val response = aliyunpanClient.send(
                     AliyunpanFileScope.GetFileList(
-                        driveId,
+                        driveId ?: "",
                         parentFileId = "root",
                         fields = "*",
                         limit = 2,
@@ -92,8 +93,8 @@ class MainActivity : AppCompatActivity() {
                 )
                 tvResult.appendWithTime("GetFileList success: $response")
 
-                val items = response?.data?.asJSONObject()?.optJSONArray("items")
-                fileId = items?.getJSONObject(0)?.optString("file_id")
+                val items = response.data.asJSONObject().optJSONArray("items")
+                fileId = items.getJSONObject(0).optString("file_id")
             } catch (e: Exception) {
                 tvResult.appendWithTime("GetFileList failed: $e")
             }
@@ -102,42 +103,45 @@ class MainActivity : AppCompatActivity() {
 
     private fun startDownloadFile(defaultDriveId: String?, fileId: String?, tvResult: TextView) {
         lifecycleScope.launch {
-            try {
-                val task =
-                    AliyunpanApp.aliyunpanClient?.buildDownload(defaultDriveId ?: "", fileId ?: "") ?: return@launch
-                // 构建下载任务成功
-                tvResult.appendWithTime("buildDownload success $task")
+            val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return@launch
 
-                // 先添加任务状态通知
-                task.addStateChange { taskState ->
-                    when (taskState) {
-                        BaseTask.TaskState.Abort -> {
-                            tvResult.appendWithTime("taskState Abort ")
-                        }
-
-                        is BaseTask.TaskState.Completed -> {
-                            tvResult.appendWithTime("taskState Completed ${taskState.filePath}")
-                        }
-
-                        is BaseTask.TaskState.Failed -> {
-                            tvResult.appendWithTime("taskState Failed ${taskState.exception}")
-                        }
-
-                        is BaseTask.TaskState.Running -> {
-                            tvResult.appendWithTime("taskState Running ${taskState.completedChunkSize}/${taskState.totalChunkSize} Progress=${taskState.getProgress()}")
-                        }
-
-                        BaseTask.TaskState.Waiting -> {
-                            tvResult.appendWithTime("taskState Waiting")
-                        }
-                    }
-                }
-
-                val startResult = task.start()
-                tvResult.appendWithTime("start task = $task startResult = $startResult")
+            val task = try {
+                aliyunpanClient.buildDownload(defaultDriveId ?: "", fileId ?: "")
             } catch (e: Exception) {
                 tvResult.appendWithTime("buildDownload failed $e")
+                return@launch
             }
+
+            // 构建下载任务成功
+            tvResult.appendWithTime("buildDownload success $task")
+
+            // 先添加任务状态通知
+            task.addStateChange { taskState ->
+                when (taskState) {
+                    BaseTask.TaskState.Abort -> {
+                        tvResult.appendWithTime("taskState Abort ")
+                    }
+
+                    is BaseTask.TaskState.Completed -> {
+                        tvResult.appendWithTime("taskState Completed ${taskState.filePath}")
+                    }
+
+                    is BaseTask.TaskState.Failed -> {
+                        tvResult.appendWithTime("taskState Failed ${taskState.exception}")
+                    }
+
+                    is BaseTask.TaskState.Running -> {
+                        tvResult.appendWithTime("taskState Running ${taskState.completedChunkSize}/${taskState.totalChunkSize} Progress=${taskState.getProgress()}")
+                    }
+
+                    BaseTask.TaskState.Waiting -> {
+                        tvResult.appendWithTime("taskState Waiting")
+                    }
+                }
+            }
+
+            val startResult = task.start()
+            tvResult.appendWithTime("start task = $task startResult = $startResult")
         }
     }
 }
