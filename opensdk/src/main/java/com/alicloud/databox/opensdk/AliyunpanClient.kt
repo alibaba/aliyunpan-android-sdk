@@ -8,13 +8,13 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import com.alicloud.databox.opensdk.AliyunpanException.Companion.buildError
+import com.alicloud.databox.opensdk.auth.AliyunpanQRCodeAuthTask
 import com.alicloud.databox.opensdk.http.OKHttpHelper
 import com.alicloud.databox.opensdk.http.OKHttpHelper.enqueue
 import com.alicloud.databox.opensdk.http.OKHttpHelper.execute
 import com.alicloud.databox.opensdk.http.TokenAuthenticator
 import com.alicloud.databox.opensdk.io.AliyunpanDownloader
 import com.alicloud.databox.opensdk.io.BaseTask
-import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -54,6 +54,57 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
         config.credentials.clearToken()
     }
 
+    fun oauthQRCode(onSuccess: Consumer<AliyunpanQRCodeAuthTask>, onFailure: Consumer<Exception>) {
+        val credentials = config.credentials
+        val scopes = config.scope.split(",")
+        val requestJson = credentials.getOAuthQRCodeRequest(scopes)
+        if (requestJson != null) {
+            oauthQRCode(requestJson, onSuccess, onFailure)
+            return
+        }
+
+        credentials.getOAuthQRCodeRequest(scopes) { value ->
+            handler.post {
+                if (value != null) {
+                    oauthQRCode(value, onSuccess, onFailure)
+                } else {
+                    LLogger.log(
+                        TAG,
+                        "oauthQRCode TokenServer not implement getOAuthQRCodeRequest"
+                    )
+                    onFailure.accept(AliyunpanException.CODE_AUTH_QRCODE_ERROR.buildError("TokenServer not implement getOAuthQRCodeRequest"))
+                }
+            }
+        }
+    }
+
+    private fun oauthQRCode(
+        requestJson: JSONObject,
+        onSuccess: Consumer<AliyunpanQRCodeAuthTask>,
+        onFailure: Consumer<Exception>
+    ) {
+        val request = Request.Builder()
+            .url(config.urlApi.buildUrl("oauth/authorize/qrcode"))
+            .post(
+                requestJson
+                    .toString()
+                    .toRequestBody("application/json".toMediaType())
+            )
+            .build()
+
+        okHttpInstance.enqueue(request,
+            handler,
+            {
+                val jsonObject = it.data.asJSONObject()
+                val qrcodeUrl = jsonObject.optString("qrCodeUrl")
+                val sid = jsonObject.optString("sid")
+                onSuccess.accept(AliyunpanQRCodeAuthTask(this, config.urlApi, qrcodeUrl, sid))
+            }, {
+                LLogger.log(TAG, "oauth qrcode request failed", it)
+                onFailure.accept(it)
+            })
+    }
+
     fun oauth(onSuccess: Consumer<Unit>, onFailure: Consumer<Exception>) {
         val context = config.context
         val credentials = config.credentials
@@ -70,7 +121,14 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
             return
         }
 
-        okHttpInstance.enqueue(credentials.getOAuthRequest(config.scope),
+        val requestQuery = credentials.getOAuthRequest(config.scope)
+
+        val request = Request.Builder()
+            .url(config.urlApi.buildUrl("oauth/authorize", requestQuery))
+            .build()
+
+        okHttpInstance.enqueue(
+            request,
             handler,
             {
                 val jsonObject = it.data.asJSONObject()
@@ -123,7 +181,7 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
         activity.finish()
     }
 
-    private fun fetchToken(code: String?, error: String?) {
+    internal fun fetchToken(code: String?, error: String?) {
 
         val context = config.context
         if (!error.isNullOrEmpty()) {
@@ -146,7 +204,7 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
 
         if (requestJson != null) {
             val request = Request.Builder()
-                .url(credentials.buildUrl("oauth/access_token"))
+                .url(config.urlApi.buildUrl("oauth/access_token"))
                 .post(
                     requestJson
                         .toString()
@@ -185,11 +243,11 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
                         )
                     }
                 } else {
-                    LLogger.log(TAG, "fetchToken TokenServer not implement")
+                    LLogger.log(TAG, "fetchToken TokenServer not implement getTokenRequest or getToken")
                     AliyunpanBroadcastHelper.sentBroadcast(
                         context,
                         AliyunpanAction.NOTIFY_LOGIN_FAILED,
-                        "TokenServer not implement"
+                        "TokenServer not implement getTokenRequest or getToken"
                     )
                 }
             }
@@ -218,17 +276,6 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
         send(request, onSuccess, onFailure)
     }
 
-    @Throws(Exception::class)
-    internal fun sendSync(scope: AliyunpanScope): ResultResponse {
-        val request = buildRequest(scope)
-        if (request == null) {
-            val exception = AliyunpanException.CODE_REQUEST_INVALID.buildError("build request failed")
-            LLogger.log(TAG, "sendSync failed", exception)
-            throw exception
-        }
-        return okHttpInstance.execute(request)
-    }
-
     /**
      * Send 发送请求
      *
@@ -238,6 +285,22 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
      */
     fun send(request: Request, onSuccess: Consumer<ResultResponse>, onFailure: Consumer<Exception>) {
         okHttpInstance.enqueue(request, handler, onSuccess, onFailure)
+    }
+
+    @Throws(Exception::class)
+    internal fun sendSync(scope: AliyunpanScope): ResultResponse {
+        val request = buildRequest(scope)
+        if (request == null) {
+            val exception = AliyunpanException.CODE_REQUEST_INVALID.buildError("build request failed")
+            LLogger.log(TAG, "sendSync failed", exception)
+            throw exception
+        }
+        return sendSync(request)
+    }
+
+    @Throws(Exception::class)
+    internal fun sendSync(request: Request): ResultResponse {
+        return okHttpInstance.execute(request)
     }
 
     fun buildDownload(
@@ -279,9 +342,7 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
     }
 
     private fun buildRequest(scope: AliyunpanScope): Request? {
-        val baseHttpUrl = HttpUrl.Builder()
-            .scheme("https")
-            .host(config.baseApi)
+        val baseHttpUrl = config.urlApi.builder()
 
         return when (scope.getHttpMethod()) {
             "POST" -> {

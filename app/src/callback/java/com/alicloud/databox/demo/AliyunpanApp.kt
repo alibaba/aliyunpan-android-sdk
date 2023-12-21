@@ -6,7 +6,6 @@ import com.alicloud.databox.opensdk.AliyunpanClient
 import com.alicloud.databox.opensdk.AliyunpanClientConfig
 import java.io.File
 
-
 object AliyunpanApp {
 
     var aliyunpanClient: AliyunpanClient? = null

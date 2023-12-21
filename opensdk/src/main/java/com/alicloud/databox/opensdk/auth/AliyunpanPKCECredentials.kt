@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Base64
 import com.alicloud.databox.opensdk.AliyunpanCredentials
 import com.alicloud.databox.opensdk.utils.DataStoreControl
-import okhttp3.Request
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -21,8 +20,7 @@ internal class AliyunpanPKCECredentials(
     context: Context,
     appId: String,
     identifier: String,
-    baseAuthApi: String,
-) : AliyunpanCredentials(context, appId, baseAuthApi) {
+) : AliyunpanCredentials(context, appId) {
 
     private val dataStoreControl = DataStoreControl(context, "PKCE", identifier)
 
@@ -43,33 +41,28 @@ internal class AliyunpanPKCECredentials(
         authModel = null
     }
 
-    override fun getOAuthRequest(scope: String): Request {
-        return Request.Builder()
-            .url(
-                buildUrl(
-                    "oauth/authorize",
-                    mapOf(
-                        "client_id" to appId,
-                        "bundle_id" to context.packageName,
-                        "scope" to scope,
-                        "redirect_uri" to "oob",
-                        "response_type" to "code",
-                        "source" to "app",
-                        "code_challenge" to getCodeChallenge(),
-                        "code_challenge_method" to getCodeChallengeMethod(),
-                    )
-                )
-            )
-            .build()
+    override fun getOAuthRequest(scope: String): Map<String, String> {
+        return mapOf(
+            "client_id" to appId,
+            "bundle_id" to context.packageName,
+            "scope" to scope,
+            "redirect_uri" to "oob",
+            "response_type" to "code",
+            "source" to "app",
+            "code_challenge" to getCodeChallenge(),
+            "code_challenge_method" to getCodeChallengeMethod(),
+        )
     }
 
-    override fun getTokenRequest(authCode: String): JSONObject {
+    override fun getOAuthQRCodeRequest(scopes: List<String>): JSONObject? {
         return JSONObject(
             mapOf(
                 "client_id" to appId,
-                "grant_type" to "authorization_code",
-                "code" to authCode,
-                "code_verifier" to getCodeVerifier(),
+                "bundle_id" to context.packageName,
+                "scopes" to scopes,
+                "source" to "app",
+                "code_challenge" to getCodeChallenge(),
+                "code_challenge_method" to getCodeChallengeMethod(),
             )
         )
     }
@@ -82,6 +75,17 @@ internal class AliyunpanPKCECredentials(
         this.authModel = AuthModel.parse(jsonObject).apply {
             saveStore(dataStoreControl)
         }
+    }
+
+    override fun getTokenRequest(authCode: String): JSONObject {
+        return JSONObject(
+            mapOf(
+                "client_id" to appId,
+                "grant_type" to "authorization_code",
+                "code" to authCode,
+                "code_verifier" to getCodeVerifier(),
+            )
+        )
     }
 
     private fun getCodeVerifier(): String {
