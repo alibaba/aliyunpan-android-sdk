@@ -13,7 +13,7 @@ android {
 
         consumerProguardFiles "consumer-rules.pro"
 
-        buildConfigField 'String', 'VERSION', '"' + String.valueOf("0.1.6") + '"'
+        buildConfigField 'String', 'VERSION', '"' + String.valueOf("0.1.7") + '"'
     }
 
     buildFeatures {

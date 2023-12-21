@@ -10,7 +10,7 @@ import java.io.File
 class AliyunpanClientConfig private constructor(
     internal val context: Context,
     internal val scope: String,
-    internal val baseApi: String,
+    internal val urlApi: AliyunpanUrlApi,
     internal val credentials: AliyunpanCredentials,
     internal val downloadFolderPath: String
 ) : HttpHeaderInterceptor.HttpHeaderConfig {
@@ -60,11 +60,10 @@ class AliyunpanClientConfig private constructor(
         /**
          * Scope
          * 默认的权限域
-         * https://www.yuque.com/aliyundrive/zpfszx/dspik0
          */
         private var scope: String = "user:base,file:all:read"
 
-        private val baseApi = "openapi.alipan.com"
+        private val urlApi = AliyunpanUrlApi.getUriApi()
 
         private var tokenServer: AliyunpanTokenServer? = null
 
@@ -75,6 +74,11 @@ class AliyunpanClientConfig private constructor(
             this.appId = appId
         }
 
+        /**
+         * Scope
+         * 更多请查看 https://www.yuque.com/aliyundrive/zpfszx/dspik0
+         * @param scope 申请的授权范围 多个权限用","分割 例如 "user:base,file:all:read"
+         */
         fun scope(scope: String) = apply { this.scope = scope }
 
         fun setIdentifier(identifier: String) = apply { this.identifier = identifier }
@@ -98,15 +102,15 @@ class AliyunpanClientConfig private constructor(
         fun build(): AliyunpanClientConfig {
             val aliyunpanTokenServer = tokenServer
             val credentials = if (aliyunpanTokenServer == null) {
-                AliyunpanPKCECredentials(context, appId, identifier, baseApi)
+                AliyunpanPKCECredentials(context, appId, identifier)
             } else {
-                AliyunpanServerCredentials(context, appId, identifier, baseApi, aliyunpanTokenServer)
+                AliyunpanServerCredentials(context, appId, identifier, aliyunpanTokenServer)
             }
 
             return AliyunpanClientConfig(
                 context,
                 scope,
-                baseApi,
+                urlApi,
                 credentials,
                 downloadFolderPath
             )
