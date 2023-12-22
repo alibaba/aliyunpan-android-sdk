@@ -12,6 +12,10 @@ on:
     branches:
       - main
       - 'feat/workflow'
+      - 'feat/workflow/**'
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
