@@ -13,7 +13,7 @@ import java.io.RandomAccessFile
  * The BufferedOutputStream implemented using [RandomAccessFile].
  * 用于下载场景文件内容保存
  */
-class BufferRandomAccessFile(file: File) {
+internal class BufferRandomAccessFile(file: File) {
 
     private var out: BufferedOutputStream? = null
     private var fd: FileDescriptor? = null

@@ -2,7 +2,7 @@ package com.alicloud.databox.opensdk
 
 import okhttp3.HttpUrl
 
-interface AliyunpanUrlApi {
+internal interface AliyunpanUrlApi {
 
     fun builder(): HttpUrl.Builder
 

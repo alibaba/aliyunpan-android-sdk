@@ -3,7 +3,7 @@ package com.alicloud.databox.opensdk
 import android.app.Activity
 import okhttp3.OkHttpClient
 
-interface AliyunpanBaseClient {
+internal interface AliyunpanBaseClient {
 
     fun clearOauth()
 
