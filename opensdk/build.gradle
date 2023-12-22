@@ -64,5 +64,5 @@ afterEvaluate {
 }
 
 dokkaHtml {
-    outputDirectory.set(file("../docs/documentation/html"))
+    outputDirectory.set(file("../docs/"))
 }
