@@ -11,7 +11,7 @@ This is the open-source SDK for Aliyunpan-Android OpenAPI.
 
 ```
 dependencies {
-    implementation 'com.github.alibaba:aliyunpan-android-sdk:v0.1.6'
+    implementation 'com.github.alibaba:aliyunpan-android-sdk:v0.1.7'
 }
 ```
 
@@ -126,6 +126,9 @@ aliyunpanClient.buildDownload(defaultDriveId, fileId, { task ->
         })
 ```
 
+## Documents
+
+[Documents](https://alibaba.github.io/aliyunpan-android-sdk/)
 
 ## Requirements
 - minSdk 21
