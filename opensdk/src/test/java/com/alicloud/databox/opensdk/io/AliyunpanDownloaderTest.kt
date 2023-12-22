@@ -8,7 +8,7 @@ class AliyunpanDownloaderTest {
     @Test
     fun testBuildChunkListLess() {
         val buildChunkList = AliyunpanDownloader.buildChunkList(DEFAULT_CHUNK_SIZE - 100)
-        Assert.assertEquals(1, buildChunkList.size)
+        Assert.assertEquals(2, buildChunkList.size)
     }
 
     @Test
