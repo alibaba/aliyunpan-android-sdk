@@ -42,9 +42,10 @@ internal class AliyunpanPKCECredentials(
     }
 
     override fun getOAuthRequest(scope: String): Map<String, String> {
-        return mapOf(
+        return mutableMapOf(
             "client_id" to appId,
-            "bundle_id" to context.packageName,
+            "bundle_id" to getPackageName(context),
+            "app_sign" to getPackageSignin(context),
             "scope" to scope,
             "redirect_uri" to "oob",
             "response_type" to "code",
@@ -58,7 +59,8 @@ internal class AliyunpanPKCECredentials(
         return JSONObject(
             mapOf(
                 "client_id" to appId,
-                "bundle_id" to context.packageName,
+                "bundle_id" to getPackageName(context),
+                "app_sign" to getPackageSignin(context),
                 "scopes" to scopes,
                 "source" to "app",
                 "code_challenge" to getCodeChallenge(),
@@ -112,24 +114,5 @@ internal class AliyunpanPKCECredentials(
 
         const val METHOD_SHA_256 = "S256"
         const val METHOD_SHA_PLAIN = "plain"
-
-        private fun getRandomString(): String {
-            val secureRandom = SecureRandom()
-            val codeByteArray = ByteArray(30)
-            secureRandom.nextBytes(codeByteArray)
-            return codeByteArray.toHex()
-        }
-
-        private fun ByteArray.getBase64UrlSafe(): String {
-            return Base64.encodeToString(this, Base64.URL_SAFE or Base64.NO_WRAP)
-        }
-
-        private fun ByteArray.getSHA256(): ByteArray {
-            val digest = MessageDigest.getInstance("SHA-256")
-            digest.update(this)
-            return digest.digest()
-        }
-
-        private fun ByteArray.toHex(): String = joinToString(separator = "") { eachByte -> "%02x".format(eachByte) }
     }
 }

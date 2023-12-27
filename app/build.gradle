@@ -25,6 +25,30 @@ android {
 
     }
 
+    signingConfigs {
+
+        release {
+            v1SigningEnabled true
+            v2SigningEnabled true
+
+            storeFile file('../key.keystore')
+            storePassword localProperties.getProperty('key_store_pass')
+            keyAlias = localProperties.getProperty('key_alias')
+            keyPassword localProperties.getProperty('key_pass')
+        }
+
+        debug {
+            v1SigningEnabled true
+            v2SigningEnabled true
+
+            storeFile file('../key.keystore')
+            storePassword localProperties.getProperty('key_store_pass')
+            keyAlias = localProperties.getProperty('key_alias')
+            keyPassword localProperties.getProperty('key_pass')
+        }
+
+    }
+
     buildFeatures {
         buildConfig = true
     }

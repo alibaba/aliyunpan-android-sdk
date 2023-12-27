@@ -42,7 +42,8 @@ internal class AliyunpanServerCredentials(
     override fun getOAuthRequest(scope: String): Map<String, String> {
         return mapOf(
             "client_id" to appId,
-            "bundle_id" to context.packageName,
+            "bundle_id" to getPackageName(context),
+            "app_sign" to getPackageSignin(context),
             "scope" to scope,
             "redirect_uri" to "oob",
             "response_type" to "code",
