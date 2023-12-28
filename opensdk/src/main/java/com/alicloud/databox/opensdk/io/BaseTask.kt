@@ -7,6 +7,8 @@ abstract class BaseTask(
     internal open val fileId: String,
 ) {
 
+    abstract fun getTaskName(): String
+
     /**
      * Start
      *
@@ -24,6 +26,9 @@ abstract class BaseTask(
 
     abstract fun removeStateChange(onChange: Consumer<TaskState>)
 
+    fun getDriveId(): String = driveId
+    fun getFileId(): String = fileId
+
     /**
      * Task state
      * 密封类封装各运行状态 和关联数据
@@ -39,14 +44,14 @@ abstract class BaseTask(
         /**
          * 正在运行
          */
-        class Running(val completedChunkSize: Int, val totalChunkSize: Int) : TaskState() {
+        class Running(val completedSize: Long, val totalSize: Long) : TaskState() {
             /**
              * Get progress
              *
              * @return 返回值范围 带小数点 0.0..1.0
              */
             fun getProgress(): Float {
-                return completedChunkSize.toFloat() / totalChunkSize
+                return completedSize.toFloat() / totalSize
             }
         }
 

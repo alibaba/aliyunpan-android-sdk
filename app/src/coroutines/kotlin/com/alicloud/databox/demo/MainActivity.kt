@@ -131,7 +131,7 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     is BaseTask.TaskState.Running -> {
-                        tvResult.appendWithTime("taskState Running ${taskState.completedChunkSize}/${taskState.totalChunkSize} Progress=${taskState.getProgress()}")
+                        tvResult.appendWithTime("taskState Running ${taskState.completedSize}/${taskState.totalSize} Progress=${taskState.getProgress()}")
                     }
 
                     BaseTask.TaskState.Waiting -> {

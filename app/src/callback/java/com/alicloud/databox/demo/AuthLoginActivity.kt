@@ -5,20 +5,22 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.alicloud.databox.demo.databinding.ActivityAuthLoginBinding
 import com.alicloud.databox.opensdk.auth.AliyunpanAuthorizeQRCodeStatus
 import com.bumptech.glide.Glide
 
 class AuthLoginActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_auth_login)
+        val binding = ActivityAuthLoginBinding.inflate(this.layoutInflater)
+        setContentView(binding.root)
 
-        findViewById<View>(R.id.btnOAuth).setOnClickListener {
+        binding.btnOAuth.setOnClickListener {
             startOAuth()
         }
 
-        findViewById<View>(R.id.btnOAuthQRCode).setOnClickListener {
-            startOAuthQRCode(findViewById<ImageView>(R.id.ivQRCode))
+        binding.btnOAuthQRCode.setOnClickListener {
+            startOAuthQRCode(binding.ivQRCode)
         }
     }
 

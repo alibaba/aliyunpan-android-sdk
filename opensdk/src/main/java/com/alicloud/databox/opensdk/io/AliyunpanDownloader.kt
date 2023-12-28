@@ -11,12 +11,12 @@ import java.io.File
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.ExecutionException
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.Future
+import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.ceil
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Aliyunpan downloader
@@ -27,7 +27,7 @@ import kotlin.math.ceil
  * @property downloadFolderPath
  * @constructor Create empty Aliyunpan downloader
  */
-internal class AliyunpanDownloader(private val client: AliyunpanClient, private val downloadFolderPath: String){
+internal class AliyunpanDownloader(private val client: AliyunpanClient, private val downloadFolderPath: String) {
 
     private val handler = client.handler
 
@@ -35,13 +35,23 @@ internal class AliyunpanDownloader(private val client: AliyunpanClient, private 
      * Download group executor
      * 最大并行下载任务 线程池
      */
-    private val downloadGroupExecutor = Executors.newFixedThreadPool(DEFAULT_MAX_DOWNLOAD_TASK_RUNNING_SIZE)
+    private val downloadGroupExecutor =
+        Executors.newFixedThreadPool(DEFAULT_MAX_DOWNLOAD_TASK_RUNNING_SIZE, object : ThreadFactory {
 
-    /**
-     * Download sub fork join pool
-     * 子任务并发池
-     */
-    private val downloadSubForkJoinPool = ForkJoinPool(DEFAULT_MAX_DOWNLOAD_CHUNK_RUNNING_SIZE)
+            private val group = Thread.currentThread().threadGroup
+
+            private val poolNumber = AtomicInteger(0)
+
+            override fun newThread(r: Runnable?): Thread {
+                return Thread(group, r, "download-group-${poolNumber.getAndIncrement()}", 0)
+            }
+        })
+
+    private val downloadSubExecutor = object : ThreadLocal<ExecutorService>() {
+        override fun initialValue(): ExecutorService? {
+            return Executors.newFixedThreadPool(DEFAULT_MAX_DOWNLOAD_SUB_RUNNING_SIZE)
+        }
+    }
 
     private val downloadRunningTaskMap = ConcurrentHashMap<DownloadTask, Future<*>>()
 
@@ -177,41 +187,47 @@ internal class AliyunpanDownloader(private val client: AliyunpanClient, private 
                 allChunkList.filterNot { lastDoneChunkSet.contains(it) }
             }
 
-            postRunning(downloadTask, lastDoneChunkSet?.size ?: 0, allChunkList.size)
-
             val doneChunkSet = mutableSetOf<TaskChunk>()
 
             if (lastDoneChunkSet != null) {
                 doneChunkSet.addAll(lastDoneChunkSet)
             }
 
+            var completedSize = if (doneChunkSet.isEmpty()) 0 else doneChunkSet.sumOf { it.chunkSize }
+
+            postRunning(downloadTask, completedSize, downloadTask.fileSize)
+
             // 构造本次 下载分片任务集合
-            val tasks = unDoneChunkList.map { DownloadRecursiveTask(downloadUrl, it, downloadTempFile) }
+            val tasks =
+                unDoneChunkList.map { DownloadRecursiveTask(downloadUrl, it, downloadTempFile, downloadTask.isCancel) }
 
-            val chunkStep = ceil(allChunkList.size.toFloat() / DEFAULT_MAX_CHUNK_STEP).toInt()
+            val executorService = downloadSubExecutor.get()
 
-            val chunkedTasks = tasks.chunked(chunkStep)
+            if (executorService == null) {
+                postFailed(downloadTask, AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("executorService is null"))
+                return@submit
+            }
 
-            for (chunkedTask in chunkedTasks) {
-                val invokeAll = downloadSubForkJoinPool.invokeAll(chunkedTask)
+            val joinTasks = tasks.map { executorService.submit(it) }
 
+            for (joinTask in joinTasks) {
                 try {
-                    for (taskChunkFuture in invokeAll) {
-                        val doneChunk = taskChunkFuture.get()
-                        doneChunkSet.add(doneChunk)
+                    val doneChunk = joinTask.get()
+                    completedSize += doneChunk.chunkSize
+                    doneChunkSet.add(doneChunk)
+
+                    postRunning(downloadTask, completedSize, downloadTask.fileSize)
+
+                    if (downloadTask.isCancel.get()) {
+                        postAbort(downloadTask)
+                        return@submit
                     }
-                } catch (e: ExecutionException) {
-                    postNext(downloadTask, allChunkList, doneChunkSet)
-                    return@submit
+                } catch (e: Exception) {
+                    if (e is InterruptedException) {
+                        postAbort(downloadTask)
+                        return@submit
+                    }
                 }
-
-                if (downloadTask.isCancel.get()) {
-                    postAbort(downloadTask)
-                    return@submit
-                }
-
-                // 完成一组chunk 通知一次进度
-                postRunning(downloadTask, doneChunkSet.size, allChunkList.size)
             }
 
             // 比对分片任务 和完成任务集合
@@ -253,10 +269,10 @@ internal class AliyunpanDownloader(private val client: AliyunpanClient, private 
         }
     }
 
-    private fun postRunning(downloadTask: DownloadTask, completedChunkSize: Int, totalChunkSize: Int) {
+    private fun postRunning(downloadTask: DownloadTask, completedSize: Long, totalSize: Long) {
         handler.post {
             for (consumer in downloadTask.stateChangeList) {
-                consumer.accept(BaseTask.TaskState.Running(completedChunkSize, totalChunkSize))
+                consumer.accept(BaseTask.TaskState.Running(completedSize, totalSize))
             }
         }
     }
@@ -306,16 +322,16 @@ internal class AliyunpanDownloader(private val client: AliyunpanClient, private 
             downloadFolder.mkdirs()
         }
 
-        val file = File(downloadFolder, downloadTask.fileName + ".download")
-        if (!file.exists()) {
-            file.createNewFile()
+        val downloadTempFile = File(downloadFolder, downloadTask.fileName + ".download")
+        if (!downloadTempFile.exists()) {
+            downloadTempFile.createNewFile()
         }
 
-        if (file.exists() && file.isDirectory) {
-            file.delete()
+        if (downloadTempFile.exists()) {
+            downloadTempFile.delete()
         }
 
-        return file
+        return downloadTempFile
     }
 
     @Throws(AliyunpanException::class)
@@ -346,17 +362,21 @@ internal class AliyunpanDownloader(private val client: AliyunpanClient, private 
     inner class DownloadRecursiveTask(
         private val url: String,
         private val taskChunk: TaskChunk,
-        private val downloadTempFile: File
+        private val downloadTempFile: File,
+        private val cancel: AtomicBoolean
     ) : Callable<TaskChunk> {
 
         override fun call(): TaskChunk {
+            if (cancel.get()) {
+                throw InterruptedException("is cancel")
+            }
+
             client.getOkHttpInstance()
                 .download(
                     url,
                     taskChunk.chunkStart,
                     taskChunk.chunkStart + taskChunk.chunkSize,
-                    downloadTempFile,
-                    null
+                    downloadTempFile
                 )
             return taskChunk
         }
@@ -384,6 +404,10 @@ internal class AliyunpanDownloader(private val client: AliyunpanClient, private 
         private var expireSeconds: Long? = null
 
         internal val stateChangeList = CopyOnWriteArrayList<Consumer<TaskState>>()
+
+        override fun getTaskName(): String {
+            return fileName
+        }
 
         override fun start(): Boolean {
             return downloader.download(this)
@@ -445,19 +469,13 @@ internal class AliyunpanDownloader(private val client: AliyunpanClient, private 
 
         private const val DEFAULT_MAX_DOWNLOAD_TASK_RUNNING_SIZE = 2
 
-        private const val DEFAULT_MAX_DOWNLOAD_CHUNK_RUNNING_SIZE = 8
+        private const val DEFAULT_MAX_DOWNLOAD_SUB_RUNNING_SIZE = 3
 
         /**
          * Default Max Chunk Size
          * 分片size 最大值
          */
-        internal const val DEFAULT_MAX_CHUNK_SIZE = 1024 * 100L
-
-        /**
-         * Default Max Chunk Step
-         * 最多切100步
-         */
-        private const val DEFAULT_MAX_CHUNK_STEP = 100
+        internal const val DEFAULT_MAX_CHUNK_SIZE = 2 * 1024 * 1024L
 
         internal fun buildChunkList(size: Long): List<TaskChunk> {
             if (size <= DEFAULT_MAX_CHUNK_SIZE) {

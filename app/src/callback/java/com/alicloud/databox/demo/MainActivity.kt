@@ -1,43 +1,43 @@
 package com.alicloud.databox.demo
 
 import android.os.Bundle
-import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.alicloud.databox.demo.ViewHelper.appendWithTime
-import com.alicloud.databox.opensdk.io.BaseTask
+import com.alicloud.databox.demo.databinding.ActivityMainBinding
 import com.alicloud.databox.opensdk.scope.AliyunpanFileScope
 import com.alicloud.databox.opensdk.scope.AliyunpanUserScope
 
 class MainActivity : AppCompatActivity() {
 
     private var defaultDriveId: String? = null
-    private var fileId: String? = null
+    private var fileIdList: List<String>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        val binding = ActivityMainBinding.inflate(this.layoutInflater)
+        setContentView(binding.root)
 
-        val tvResult = findViewById<TextView>(R.id.tvResult)
+        val tvResult = binding.tvResult
 
-        findViewById<View>(R.id.btnOAuth).setOnClickListener {
+        binding.btnOAuth.setOnClickListener {
             startOAuth(tvResult)
         }
 
-        findViewById<View>(R.id.btnOAuthClear).setOnClickListener {
+        binding.btnOAuthClear.setOnClickListener {
             clearOAuth(tvResult)
         }
 
-        findViewById<View>(R.id.btnUserInfo).setOnClickListener {
+        binding.btnUserInfo.setOnClickListener {
             getDriveInfo(tvResult)
         }
 
-        findViewById<View>(R.id.btnFileListInfo).setOnClickListener {
+        binding.btnFileListInfo.setOnClickListener {
             getFileList(defaultDriveId, tvResult)
         }
 
-        findViewById<View>(R.id.btnFileDownload).setOnClickListener {
-            startDownloadFile(defaultDriveId, fileId, tvResult)
+        binding.btnFileDownload.setOnClickListener {
+            startDownloadFile(defaultDriveId, fileIdList, tvResult)
         }
     }
 
@@ -77,55 +77,36 @@ class MainActivity : AppCompatActivity() {
             driveId ?: "",
             parentFileId = "root",
             fields = "*",
-            limit = 2,
+            limit = 3,
             type = "file",
             orderBy = "size",
-            orderDirection = "ASC"
+            orderDirection = "DESC"
         ), {
-            tvResult.appendWithTime("GetFileList success: $it")
+            tvResult.appendWithTime("GetFileList success")
 
             val items = it.data.asJSONObject().optJSONArray("items")
-            fileId = items.getJSONObject(0).optString("file_id")
+            val fileNameList = arrayListOf<String>()
+
+            val fileIds = arrayListOf<String>()
+            for (i in 0 until items.length()) {
+                val itemJsonObject = items.optJSONObject(i)
+                fileIds.add(itemJsonObject.optString("file_id"))
+                fileNameList.add(itemJsonObject.optString("name"))
+            }
+            tvResult.appendWithTime("GetFileList success items size = ${items.length()} fileNameList = $fileNameList")
+
+            fileIdList = fileIds
 
         }, {
             tvResult.appendWithTime("GetFileList failed: $it")
         })
     }
 
-    private fun startDownloadFile(defaultDriveId: String?, fileId: String?, tvResult: TextView) {
-        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
-        aliyunpanClient.buildDownload(defaultDriveId ?: "", fileId ?: "", { task ->
-            // 构建下载任务成功
-            tvResult.appendWithTime("buildDownload success $task")
-            // 先添加任务状态通知
-            task.addStateChange { taskState ->
-                when (taskState) {
-                    BaseTask.TaskState.Abort -> {
-                        tvResult.appendWithTime("taskState Abort ")
-                    }
-
-                    is BaseTask.TaskState.Completed -> {
-                        tvResult.appendWithTime("taskState Completed ${taskState.filePath}")
-                    }
-
-                    is BaseTask.TaskState.Failed -> {
-                        tvResult.appendWithTime("taskState Failed ${taskState.exception}")
-                    }
-
-                    is BaseTask.TaskState.Running -> {
-                        tvResult.appendWithTime("taskState Running ${taskState.completedChunkSize}/${taskState.totalChunkSize} Progress=${taskState.getProgress()}")
-                    }
-
-                    BaseTask.TaskState.Waiting -> {
-                        tvResult.appendWithTime("taskState Waiting")
-                    }
-                }
-            }
-            // 开始下载 如果当前任务运行中 返回false
-            val startResult = task.start()
-            tvResult.appendWithTime("start task = $task startResult = $startResult")
-        }, {
-            tvResult.appendWithTime("buildDownload failed $it")
-        })
+    private fun startDownloadFile(defaultDriveId: String?, fileIdList: List<String>?, tvResult: TextView) {
+        if (defaultDriveId.isNullOrEmpty() || fileIdList.isNullOrEmpty()) {
+            tvResult.appendWithTime("startDownloadFile defaultDriveId/fileIdList is null or empty")
+            return
+        }
+        DownloadActivity.launch(this, defaultDriveId, fileIdList.toTypedArray())
     }
 }

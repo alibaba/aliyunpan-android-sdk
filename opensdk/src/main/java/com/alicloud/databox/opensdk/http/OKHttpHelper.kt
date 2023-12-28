@@ -1,6 +1,7 @@
 package com.alicloud.databox.opensdk.http
 
 import android.os.Handler
+import androidx.annotation.WorkerThread
 import com.alicloud.databox.opensdk.AliyunpanException
 import com.alicloud.databox.opensdk.AliyunpanException.Companion.buildError
 import com.alicloud.databox.opensdk.BuildConfig
@@ -83,8 +84,11 @@ internal object OKHttpHelper {
     }
 
     @Throws(AliyunpanException::class)
-    fun OkHttpClient.download(url: String, start: Long, end: Long, downloadTempFile: File, listener: Consumer<Long>?) {
-        val rangeHeader = "bytes=" + start + "-" + if (end < 0) "" else end
+    @WorkerThread
+    fun OkHttpClient.download(url: String, start: Long, end: Long, downloadTempFile: File) {
+        // Range有效区间 在 0 至 (file size -1)
+        val offsetEnd = end - 1
+        val rangeHeader = "bytes=$start-$offsetEnd"
         val request: Request = Request.Builder()
             .addHeader("Range", rangeHeader)
             .url(url)
@@ -109,32 +113,21 @@ internal object OKHttpHelper {
             randomAccessFile = BufferRandomAccessFile(downloadTempFile)
 
             var size: Int
-            var notifySize: Long = 0
-            var addUpNotifySize = 0
             val buff = ByteArray(1024)
-            randomAccessFile?.seek(start)
+
+            randomAccessFile.seek(start)
 
             while (inputStream.read(buff).also { size = it } != -1) {
                 randomAccessFile.write(buff, 0, size)
-                notifySize += size
-                if (notifySize >= NOTIFY_SIZE_THRESHOLD) {
-                    listener?.accept(notifySize)
-                    notifySize = 0
-                }
-                addUpNotifySize += size
+            }
 
-                randomAccessFile.flushAndSync()
-            }
-            if (notifySize > 0) {
-                listener?.accept(notifySize)
-            }
-            randomAccessFile?.flushAndSync()
+            randomAccessFile.flushAndSync()
         } catch (e: IOException) {
             throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError(e.message ?: "download error")
         } finally {
+            randomAccessFile?.close()
             response?.close()
             inputStream?.close()
-            randomAccessFile?.close()
         }
     }
 }

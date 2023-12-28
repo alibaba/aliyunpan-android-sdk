@@ -12,8 +12,6 @@ import java.io.RandomAccessFile
 /**
  * The BufferedOutputStream implemented using [RandomAccessFile].
  * 用于下载场景文件内容保存
- *
- * @author dengxian.ldx
  */
 class BufferRandomAccessFile(file: File) {
 
@@ -44,11 +42,11 @@ class BufferRandomAccessFile(file: File) {
     @Throws(IOException::class)
     fun close() {
         out?.close()
-        randomAccess?.close()
+        randomAccess.close()
     }
 
     @Throws(IOException::class)
     fun seek(offset: Long) {
-        randomAccess?.seek(offset)
+        randomAccess.seek(offset)
     }
 }
