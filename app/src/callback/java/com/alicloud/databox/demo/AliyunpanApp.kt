@@ -17,7 +17,7 @@ object AliyunpanApp {
             .downFolder(
                 File(
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                    "Aliyunpan-Sdk"
+                    "Aliyunpan"
                 )
             )
             .build()
