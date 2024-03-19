@@ -5,14 +5,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center_horizontal"
-    android:orientation="vertical"
-    tools:context=".DownloadActivity">
+    android:orientation="vertical">
 
     <Button
-        android:id="@+id/btnFileDownload"
+        android:id="@+id/btnStartTask"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="开始下载" />
+        tools:text="开始任务" />
 
     <LinearLayout
         android:id="@+id/layoutGroup"

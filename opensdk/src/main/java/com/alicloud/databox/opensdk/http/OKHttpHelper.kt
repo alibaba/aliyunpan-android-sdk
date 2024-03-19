@@ -10,18 +10,21 @@ import com.alicloud.databox.opensdk.ResultResponse
 import com.alicloud.databox.opensdk.io.BufferRandomAccessFile
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
+import okio.BufferedSink
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.io.RandomAccessFile
 
 internal object OKHttpHelper {
 
-    private const val NOTIFY_SIZE_THRESHOLD: Long = 512
     fun buildOKHttpClient(
         authenticatorConfig: TokenAuthenticator.TokenAuthenticatorConfig,
         httpHeaderConfig: HttpHeaderInterceptor.HttpHeaderConfig
@@ -63,7 +66,7 @@ internal object OKHttpHelper {
         })
     }
 
-    fun buildAHttpException(response: Response): AliyunpanHttpException {
+    private fun buildHttpException(response: Response): AliyunpanHttpException {
         val bodyString = response.body?.string()
         val jsonError = bodyString?.let { JSONObject(it) }
         return AliyunpanHttpException(
@@ -80,10 +83,10 @@ internal object OKHttpHelper {
                 ResultResponse.Data(bytes ?: ByteArray(0))
             )
         }
-        throw buildAHttpException(response)
+        throw buildHttpException(response)
     }
 
-    @Throws(AliyunpanException::class)
+    @Throws(Exception::class)
     @WorkerThread
     fun OkHttpClient.download(url: String, start: Long, end: Long, downloadTempFile: File) {
         // Range有效区间 在 0 至 (file size -1)
@@ -100,34 +103,93 @@ internal object OKHttpHelper {
 
         try {
             response = this.newCall(request).execute()
-            if (!response.isSuccessful) {
-                throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("download not success")
+
+            val code = response.code
+            val responseBody = response.body
+            if (response.isSuccessful && responseBody != null) {
+                inputStream = responseBody.byteStream()
+                randomAccessFile = BufferRandomAccessFile(downloadTempFile)
+
+                var size: Int
+                val buff = ByteArray(1024)
+
+                randomAccessFile.seek(start)
+
+                while (inputStream.read(buff).also { size = it } != -1) {
+                    randomAccessFile.write(buff, 0, size)
+                }
+
+                randomAccessFile.flushAndSync()
+            } else {
+                val errorBodyString = responseBody?.string()
+                if (code == 403 && errorBodyString != null && errorBodyString.contains("Request has expired.")) {
+                    throw AliyunpanUrlExpiredException(AliyunpanException.CODE_DOWNLOAD_ERROR, "request has expired")
+                } else {
+                    throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("download not success")
+                }
             }
-
-            val body = response.body
-            if (body == null) {
-                throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("download body is null")
-            }
-
-            inputStream = body.byteStream()
-            randomAccessFile = BufferRandomAccessFile(downloadTempFile)
-
-            var size: Int
-            val buff = ByteArray(1024)
-
-            randomAccessFile.seek(start)
-
-            while (inputStream.read(buff).also { size = it } != -1) {
-                randomAccessFile.write(buff, 0, size)
-            }
-
-            randomAccessFile.flushAndSync()
-        } catch (e: IOException) {
-            throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError(e.message ?: "download error")
         } finally {
             randomAccessFile?.close()
             response?.close()
             inputStream?.close()
+        }
+    }
+
+    @Throws(Exception::class)
+    @WorkerThread
+    fun OkHttpClient.upload(url: String, start: Long, end: Long, uploadFile: File) {
+
+        val requestBody = object : RequestBody() {
+
+            private val BUFFER_SIZE = 1024
+
+            override fun contentType(): MediaType? {
+                return null
+            }
+
+            override fun contentLength(): Long {
+                return end - start
+            }
+
+            override fun writeTo(sink: BufferedSink) {
+                var accessFile: RandomAccessFile? = null
+                var result = ByteArray(BUFFER_SIZE)
+                try {
+                    accessFile = RandomAccessFile(uploadFile, "r")
+                    accessFile.seek(start)
+                    var completedSize: Long = 0
+                    while (completedSize < contentLength()) {
+                        if (completedSize + BUFFER_SIZE > contentLength()) {
+                            result = ByteArray((contentLength() - completedSize).toInt())
+                        }
+                        val size = accessFile.read(result)
+                        sink.write(result, 0, size)
+                        completedSize += size.toLong()
+                    }
+                } finally {
+                    accessFile?.close()
+                }
+            }
+        }
+
+        val request: Request = Request.Builder()
+            .url(url)
+            .put(requestBody)
+            .build()
+
+        var response: Response? = null
+        try {
+            response = this.newCall(request).execute()
+
+            val code = response.code
+            if (code == 200 || code == 409) {
+                return
+            }
+            if (code == 403) {
+                throw AliyunpanException.CODE_UPLOAD_ERROR.buildError("upload url expired")
+            }
+        } finally {
+            response?.close()
         }
     }
 }

@@ -6,11 +6,13 @@ import android.os.Bundle
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.alicloud.databox.demo.ViewHelper.appendWithTime
 import com.alicloud.databox.demo.databinding.ActivityTaskBinding
 import com.alicloud.databox.demo.databinding.IncludeTaskBinding
-import com.alicloud.databox.opensdk.AliyunpanClient
+import com.alicloud.databox.opensdk.kotlin.AliyunpanClient
 import com.alicloud.databox.opensdk.io.BaseTask
+import kotlinx.coroutines.launch
 
 class DownloadActivity : AppCompatActivity() {
 
@@ -53,7 +55,13 @@ class DownloadActivity : AppCompatActivity() {
         layoutGroup: LinearLayout,
         tvResult: TextView
     ) {
-        client.buildDownload(driveId, fileId, { task ->
+        lifecycleScope.launch {
+            val task = try {
+                client.buildDownload(driveId, fileId)
+            } catch (e: Exception) {
+                tvResult.appendWithTime("buildDownload failed: $e")
+                return@launch
+            }
             tvResult.appendWithTime("buildDownload success")
 
             val taskBinding = IncludeTaskBinding.inflate(layoutInflater, layoutGroup, true)
@@ -95,9 +103,7 @@ class DownloadActivity : AppCompatActivity() {
             }
             val startResult = task.start()
             tvResult.appendWithTime("task startResult: $startResult")
-        }, {
-            tvResult.appendWithTime("buildDownload failed: $it")
-        })
+        }
     }
 
     companion object {

@@ -39,6 +39,10 @@ class MainActivity : AppCompatActivity() {
         binding.btnFileDownload.setOnClickListener {
             startDownloadFile(defaultDriveId, fileIdList, tvResult)
         }
+
+        binding.btnFileUpload.setOnClickListener {
+            startUploadFile(defaultDriveId, tvResult)
+        }
     }
 
     private fun startOAuth(tvResult: TextView) {
@@ -77,7 +81,7 @@ class MainActivity : AppCompatActivity() {
             driveId ?: "",
             parentFileId = "root",
             fields = "*",
-            limit = 3,
+            limit = DownloadActivity.MAX_DOWNLOAD_FILE_COUNT,
             type = "file",
             orderBy = "size",
             orderDirection = "DESC"
@@ -108,5 +112,14 @@ class MainActivity : AppCompatActivity() {
             return
         }
         DownloadActivity.launch(this, defaultDriveId, fileIdList.toTypedArray())
+    }
+
+    private fun startUploadFile(defaultDriveId: String?, tvResult: TextView) {
+        if (defaultDriveId.isNullOrEmpty()) {
+            tvResult.appendWithTime("startUploadFile defaultDriveId is null or empty")
+            return
+        }
+
+        UploadActivity.launch(this, defaultDriveId)
     }
 }

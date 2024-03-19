@@ -14,6 +14,7 @@ import com.alicloud.databox.opensdk.http.OKHttpHelper.enqueue
 import com.alicloud.databox.opensdk.http.OKHttpHelper.execute
 import com.alicloud.databox.opensdk.http.TokenAuthenticator
 import com.alicloud.databox.opensdk.io.AliyunpanDownloader
+import com.alicloud.databox.opensdk.io.AliyunpanUploader
 import com.alicloud.databox.opensdk.io.BaseTask
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -27,7 +28,7 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
 
     private val downloader: AliyunpanDownloader? by lazy {
         val downloadFolderPath = config.downloadFolderPath
-        if (downloadFolderPath.isNullOrEmpty()) {
+        if (downloadFolderPath.isEmpty()) {
             null
         } else {
             AliyunpanDownloader(
@@ -35,6 +36,10 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
                 downloadFolderPath
             )
         }
+    }
+
+    private val uploader: AliyunpanUploader by lazy {
+        AliyunpanUploader(this, config.credentials)
     }
 
     private val okHttpInstance = OKHttpHelper.buildOKHttpClient(this, config)
@@ -339,6 +344,26 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
             return
         }
         downloader.buildDownload(driveId, fileId, expireSec, onSuccess, onFailure)
+    }
+
+    fun buildUpload(
+        driveId: String,
+        loadFilePath: String,
+        onSuccess: Consumer<BaseTask>,
+        onFailure: Consumer<Exception>
+    ) {
+        this.buildUpload(driveId, loadFilePath, null, null, onSuccess, onFailure)
+    }
+
+    fun buildUpload(
+        driveId: String,
+        loadFilePath: String,
+        parentFileId: String? = AliyunpanUploader.DEFAULT_UPLOAD_PARENT_FILE_ID,
+        checkNameMode: String? = AliyunpanUploader.DEFAULT_UPLOAD_CHECK_NAME_MODE,
+        onSuccess: Consumer<BaseTask>,
+        onFailure: Consumer<Exception>
+    ) {
+        uploader.buildUpload(driveId, loadFilePath, parentFileId, checkNameMode, onSuccess, onFailure)
     }
 
     private fun buildRequest(scope: AliyunpanScope): Request? {

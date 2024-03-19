@@ -32,13 +32,16 @@
         </activity>
         <activity
             android:name="com.alicloud.databox.demo.DownloadActivity"
-            android:exported="false"
-            />
+            android:exported="false" />
+        <activity
+            android:name="com.alicloud.databox.demo.UploadActivity"
+            android:exported="false" />
 
         <activity
             android:name=".ypauth.YPAuthActivity"
             android:exported="true"
             android:launchMode="singleTask" />
+
     </application>
 
 </manifest>
