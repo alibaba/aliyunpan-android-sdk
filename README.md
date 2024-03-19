@@ -11,7 +11,7 @@ This is the open-source SDK for Aliyunpan-Android OpenAPI.
 
 ```
 dependencies {
-    implementation 'com.github.alibaba:aliyunpan-android-sdk:v0.1.8'
+    implementation 'com.github.alibaba:aliyunpan-android-sdk:v0.1.9'
 }
 ```
 
@@ -97,10 +97,10 @@ lifecycleScope.launch {
         }
 ```
 
-#### Download
+### Download
 
 ```
-aliyunpanClient.buildDownload(defaultDriveId, fileId, { task ->
+aliyunpanClient.buildDownload(driveId, fileId, { task ->
             // success
             task.addStateChange { taskState ->
                 when (taskState) {
@@ -125,6 +125,36 @@ aliyunpanClient.buildDownload(defaultDriveId, fileId, { task ->
             // failure
         })
 ```
+
+### Upload
+
+```
+aliyunpanClient.buildUpload(driveId, filePath, { task ->
+            // success
+            task.addStateChange { taskState ->
+                when (taskState) {
+                    BaseTask.TaskState.Abort -> {
+                    }
+
+                    is BaseTask.TaskState.Completed -> {
+                    }
+
+                    is BaseTask.TaskState.Failed -> {
+                    }
+
+                    is BaseTask.TaskState.Running -> {
+                    }
+
+                    BaseTask.TaskState.Waiting -> {
+                    }
+                }
+            }
+            val startResult = task.start()
+        }, {
+            // failure
+        })
+```
+
 
 ## Documents
 
