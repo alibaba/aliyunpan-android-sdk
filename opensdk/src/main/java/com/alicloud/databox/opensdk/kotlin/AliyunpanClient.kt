@@ -21,6 +21,7 @@ class AliyunpanClient(private val client: AliyunpanClient) : AliyunpanBaseClient
             client.oauth({ continuation.resume(it) }, { continuation.resumeWithException(it) })
         }
     }
+
     @Throws(Exception::class)
     suspend fun oauthQRCode(): AliyunpanQRCodeAuthTask {
         return suspendCoroutine { continuation ->
@@ -56,6 +57,20 @@ class AliyunpanClient(private val client: AliyunpanClient) : AliyunpanBaseClient
     ): BaseTask {
         return suspendCoroutine { continuation ->
             client.buildDownload(driveId, fileId, expireSec,
+                { continuation.resume(it) },
+                { continuation.resumeWithException(it) })
+        }
+    }
+
+    @Throws(Exception::class)
+    suspend fun buildUpload(
+        driveId: String,
+        loadFilePath: String,
+        parentFileId: String? = null,
+        checkNameMode: String? = null,
+    ): BaseTask {
+        return suspendCoroutine { continuation ->
+            client.buildUpload(driveId, loadFilePath, parentFileId, checkNameMode,
                 { continuation.resume(it) },
                 { continuation.resumeWithException(it) })
         }

@@ -1,6 +1,7 @@
 package com.alicloud.databox.opensdk.scope
 
 import com.alicloud.databox.opensdk.AliyunpanScope
+import org.json.JSONArray
 
 interface AliyunpanFileScope {
 
@@ -212,9 +213,17 @@ interface AliyunpanFileScope {
     /**
      * 批量获取文件详情
      * @property fileList
+     * @property videoThumbnailTime 生成的视频缩略图截帧时间，单位ms，默认120000ms
+     * @property videoThumbnailWidth 生成的视频缩略图宽度，默认480px
+     * @property imageThumbnailWidth 生成的图片缩略图宽度，默认480px
      */
 
-    class BatchGet(private val fileList: String) : AliyunpanScope {
+    class BatchGet(
+        private val fileList: JSONArray,
+        private val videoThumbnailTime: Long? = null,
+        private val videoThumbnailWidth: Long? = null,
+        private val imageThumbnailWidth: Long? = null
+    ) : AliyunpanScope {
         override fun getHttpMethod(): String {
             return "POST"
         }
@@ -224,7 +233,12 @@ interface AliyunpanFileScope {
         }
 
         override fun getRequest(): Map<String, Any?> {
-            return mapOf("file_list" to fileList)
+            return mapOf(
+                "file_list" to fileList,
+                "video_thumbnail_time" to videoThumbnailTime,
+                "video_thumbnail_width" to videoThumbnailWidth,
+                "image_thumbnail_width" to imageThumbnailWidth,
+            )
         }
     }
 
@@ -278,8 +292,8 @@ interface AliyunpanFileScope {
         private val name: String,
         private val type: String,
         private val checkNameMode: String,
-        private val partInfoList: String? = null,
-        private val streamsInfo: String? = null,
+        private val partInfoList: JSONArray? = null,
+        private val streamsInfo: JSONArray? = null,
         private val preHash: String? = null,
         private val size: Long? = null,
         private val contentHash: String? = null,
@@ -330,7 +344,7 @@ interface AliyunpanFileScope {
         private val driveId: String,
         private val fileId: String,
         private val uploadId: String,
-        private val partInfoList: String? = null
+        private val partInfoList: JSONArray? = null
     ) : AliyunpanScope {
         override fun getHttpMethod(): String {
             return "POST"

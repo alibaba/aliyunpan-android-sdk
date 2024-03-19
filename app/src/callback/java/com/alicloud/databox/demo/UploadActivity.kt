@@ -3,58 +3,61 @@ package com.alicloud.databox.demo
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.widget.LinearLayout
-import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.alicloud.databox.demo.ViewHelper.appendWithTime
 import com.alicloud.databox.demo.databinding.ActivityTaskBinding
 import com.alicloud.databox.demo.databinding.IncludeTaskBinding
-import com.alicloud.databox.opensdk.AliyunpanClient
 import com.alicloud.databox.opensdk.io.BaseTask
 
-class DownloadActivity : AppCompatActivity() {
+class UploadActivity : AppCompatActivity() {
+
+    private val binding: ActivityTaskBinding by lazy { ActivityTaskBinding.inflate(this.layoutInflater) }
+
+    private val getContent = registerForActivityResult(ActivityResultContracts.GetContent()) {
+        if (it != null) {
+            val filePath = PathUtils.getPathFromUri(this, it)
+            startUploadFile(filePath)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val binding = ActivityTaskBinding.inflate(this.layoutInflater)
         setContentView(binding.root)
 
-        val driveId = intent.getStringExtra(KEY_DRIVE_ID)
-        val fileIds = intent.getStringArrayExtra(KEY_FILE_IDS)
-
         binding.btnStartTask.apply {
-            text = "开始下载"
+            text = "开始上传"
             setOnClickListener {
-                startDownloadFileAll(driveId, fileIds, binding.layoutGroup, binding.tvResult)
+                pickFile()
             }
         }
     }
 
-    private fun startDownloadFileAll(
-        driveId: String?,
-        fileIds: Array<String>?,
-        layoutGroup: LinearLayout,
-        tvResult: TextView
-    ) {
-        if (driveId.isNullOrEmpty() || fileIds.isNullOrEmpty()) {
+    private fun pickFile() {
+        getContent.launch("*/*")
+    }
+
+    private fun startUploadFile(filePath: String?) {
+
+        val driveId = intent.getStringExtra(KEY_DRIVE_ID)
+
+        val layoutGroup = binding.layoutGroup
+        val tvResult = binding.tvResult
+
+        if (driveId.isNullOrEmpty()) {
+            tvResult.appendWithTime("driveId is null or empty")
             return
         }
 
-        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
-        fileIds.forEach {
-            startDownloadFile(aliyunpanClient, driveId, it, layoutGroup, tvResult)
+        if (filePath.isNullOrEmpty()) {
+            tvResult.appendWithTime("path is null or empty")
+            return
         }
-    }
 
-    private fun startDownloadFile(
-        client: AliyunpanClient,
-        driveId: String,
-        fileId: String,
-        layoutGroup: LinearLayout,
-        tvResult: TextView
-    ) {
-        client.buildDownload(driveId, fileId, { task ->
-            tvResult.appendWithTime("buildDownload success")
+        tvResult.appendWithTime("path = $filePath")
+        val aliyunpanClient = AliyunpanApp.aliyunpanClient ?: return
+        aliyunpanClient.buildUpload(driveId, filePath, { task ->
+            tvResult.appendWithTime("buildUpload success")
 
             val taskBinding = IncludeTaskBinding.inflate(layoutInflater, layoutGroup, true)
 
@@ -74,7 +77,7 @@ class DownloadActivity : AppCompatActivity() {
 
                     is BaseTask.TaskState.Completed -> {
                         taskBinding.progress.progress = 100
-                        taskBinding.tvTaskProcess.text = "完成 下载文件路径=${state.filePath}"
+                        taskBinding.tvTaskProcess.text = "完成 上传文件路径=${state.filePath}"
                     }
 
                     is BaseTask.TaskState.Failed -> {
@@ -84,7 +87,7 @@ class DownloadActivity : AppCompatActivity() {
                     is BaseTask.TaskState.Running -> {
                         val progress = state.getProgress()
                         taskBinding.tvTaskProcess.text =
-                            "下载中 ${SizeUtil.getFormatSize(state.completedSize)} / ${SizeUtil.getFormatSize(state.totalSize)}"
+                            "上传中 ${SizeUtil.getFormatSize(state.completedSize)} / ${SizeUtil.getFormatSize(state.totalSize)}"
                         taskBinding.progress.progress = (progress * 100).toInt()
                     }
 
@@ -93,24 +96,21 @@ class DownloadActivity : AppCompatActivity() {
                     }
                 }
             }
+
             val startResult = task.start()
             tvResult.appendWithTime("task startResult: $startResult")
         }, {
-            tvResult.appendWithTime("buildDownload failed: $it")
+            tvResult.appendWithTime("buildUpload failed $it")
         })
     }
 
     companion object {
 
         private const val KEY_DRIVE_ID = "key_drive_id"
-        private const val KEY_FILE_IDS = "key_file_ids"
 
-        const val MAX_DOWNLOAD_FILE_COUNT = 3
-
-        fun launch(context: Activity, driveId: String, fileIds: Array<String>) {
-            context.startActivity(Intent(context, DownloadActivity::class.java).apply {
+        fun launch(context: Activity, driveId: String) {
+            context.startActivity(Intent(context, UploadActivity::class.java).apply {
                 putExtra(KEY_DRIVE_ID, driveId)
-                putExtra(KEY_FILE_IDS, fileIds)
             })
         }
     }

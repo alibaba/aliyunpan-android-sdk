@@ -1,11 +1,18 @@
 package com.alicloud.databox.opensdk.io
 
 import com.alicloud.databox.opensdk.Consumer
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 
 abstract class BaseTask(
     internal open val driveId: String,
     internal open val fileId: String,
+    internal open val fileParentFileId: String,
 ) {
+
+    private val isCancel = AtomicBoolean(false)
+
+    internal val stateChangeList = CopyOnWriteArrayList<Consumer<TaskState>>()
 
     abstract fun getTaskName(): String
 
@@ -20,11 +27,17 @@ abstract class BaseTask(
      * Cancel
      * 取消任务
      */
-    abstract fun cancel()
+    open fun cancel() = isCancel.set(true)
 
-    abstract fun addStateChange(onChange: Consumer<TaskState>)
+    open fun isCancel(): Boolean = isCancel.get()
 
-    abstract fun removeStateChange(onChange: Consumer<TaskState>)
+    open fun addStateChange(onChange: Consumer<TaskState>) {
+        stateChangeList.add(onChange)
+    }
+
+    open fun removeStateChange(onChange: Consumer<TaskState>) {
+        stateChangeList.remove(onChange)
+    }
 
     fun getDriveId(): String = driveId
     fun getFileId(): String = fileId

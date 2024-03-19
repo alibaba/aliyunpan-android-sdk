@@ -44,6 +44,12 @@ class AliyunpanClientConfig private constructor(
     companion object {
 
         private const val USER_AGENT_FORMAT = "%s/%s (%s; build:%s; Android %s) AliyunpanSDK/%s"
+
+        const val SCOPE_USER_BASE = "user:base"
+        const val SCOPE_FILE_READ = "file:all:read"
+        const val SCOPE_FILE_WRITE = "file:all:write"
+        const val SCOPE_ALBUM_SHARED_READ = "album:shared:read"
+        private const val SCOPE_SEPARATOR = ","
     }
 
     class Builder {
@@ -61,7 +67,7 @@ class AliyunpanClientConfig private constructor(
          * Scope
          * 默认的权限域
          */
-        private var scope: String = "user:base,file:all:read"
+        private var scopes: List<String> = arrayListOf(SCOPE_USER_BASE, SCOPE_FILE_READ)
 
         private val urlApi = AliyunpanUrlApi.getUriApi()
 
@@ -77,9 +83,13 @@ class AliyunpanClientConfig private constructor(
         /**
          * Scope
          * 更多请查看 https://www.yuque.com/aliyundrive/zpfszx/dspik0
-         * @param scope 申请的授权范围 多个权限用","分割 例如 "user:base,file:all:read"
+         * @param scopes 申请的授权范围 多个权限用","分割 例如 "user:base,file:all:read"
          */
-        fun scope(scope: String) = apply { this.scope = scope }
+        fun scope(scopes: String) = apply { this.scopes = scopes.split(SCOPE_SEPARATOR) }
+
+        fun scope(scopes: List<String>) = apply { this.scopes = scopes }
+
+        fun appendScope(scope: String) = apply { this.scopes = this.scopes.toMutableList().also { it.add(scope) } }
 
         fun setIdentifier(identifier: String) = apply { this.identifier = identifier }
 
@@ -100,6 +110,7 @@ class AliyunpanClientConfig private constructor(
         fun downFolder(downloadFolder: File) = apply { this.downloadFolderPath = downloadFolder.absolutePath }
 
         fun build(): AliyunpanClientConfig {
+
             val aliyunpanTokenServer = tokenServer
             val credentials = if (aliyunpanTokenServer == null) {
                 AliyunpanPKCECredentials(context, appId, identifier)
@@ -109,11 +120,14 @@ class AliyunpanClientConfig private constructor(
 
             return AliyunpanClientConfig(
                 context,
-                scope,
+                scopes.joinToString(SCOPE_SEPARATOR),
                 urlApi,
                 credentials,
                 downloadFolderPath
             )
+        }
+
+        companion object {
         }
     }
 }

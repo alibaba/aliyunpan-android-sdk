@@ -3,9 +3,9 @@ package com.alicloud.databox.opensdk.auth
 import android.content.Context
 import android.util.Base64
 import com.alicloud.databox.opensdk.AliyunpanCredentials
+import com.alicloud.databox.opensdk.io.MessageDigestHelper
 import com.alicloud.databox.opensdk.utils.DataStoreControl
 import org.json.JSONObject
-import java.security.MessageDigest
 import java.security.SecureRandom
 
 /**
@@ -125,9 +125,7 @@ internal class AliyunpanPKCECredentials(
         }
 
         private fun ByteArray.getSHA256(): ByteArray {
-            val digest = MessageDigest.getInstance("SHA-256")
-            digest.update(this)
-            return digest.digest()
+            return MessageDigestHelper.getSHA256(this)
         }
 
         private fun ByteArray.toHex(): String = joinToString(separator = "") { eachByte -> "%02x".format(eachByte) }

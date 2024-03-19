@@ -5,7 +5,8 @@
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="12dp">
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="12dp">
 
     <TextView
         android:id="@+id/tvTaskName"
@@ -16,14 +17,29 @@
         android:maxLines="2"
         tools:text="任务名称" />
 
-    <com.google.android.material.progressindicator.LinearProgressIndicator
-        android:id="@+id/progress"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="12dp"
         android:layout_weight="2"
-        android:max="100"
-        tools:progress="50" />
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="12dp"
+            android:max="100"
+            tools:progress="50" />
+
+        <TextView
+            android:id="@+id/btnTaskOperate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="操作"
+            android:textSize="10sp" />
+
+    </LinearLayout>
 
     <TextView
         android:id="@+id/tvTaskProcess"
