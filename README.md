@@ -160,6 +160,20 @@ aliyunpanClient.buildUpload(driveId, filePath, { task ->
 
 [Documents](https://alibaba.github.io/aliyunpan-android-sdk/)
 
+### About Repositories
+
+Add it in your root build.gradle at the end of repositories:
+
+```
+	dependencyResolutionManagement {
+		repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+		repositories {
+			mavenCentral()
+			maven { url 'https://jitpack.io' }
+		}
+	}
+```
+
 ## Requirements
 - minSdk 21
 
