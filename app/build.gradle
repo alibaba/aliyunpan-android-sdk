@@ -23,7 +23,7 @@ android {
         buildConfigField 'String', 'APP_ID', '"' + localProperties.getProperty('app_id') + '"'
         buildConfigField 'String', 'APP_SECRET', '"' + localProperties.getProperty('app_secret') + '"'
 
-        manifestPlaceholders = [ypappid: localProperties.getProperty('app_id')]
+        manifestPlaceholders = [ypappid: localProperties.getProperty('app_id',"")]
     }
 
     buildFeatures {
