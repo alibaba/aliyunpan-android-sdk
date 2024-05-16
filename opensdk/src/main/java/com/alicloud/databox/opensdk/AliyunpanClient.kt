@@ -119,14 +119,15 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
             return
         }
 
-        if (!isInstanceYunpanApp()) {
-            val exception = AliyunpanException.CODE_APP_NOT_INSTALL.buildError("yunpan app not install")
-            LLogger.log(TAG, "oauth failed", exception)
-            onFailure.accept(exception)
-            return
+        val installApp = isInstanceYunpanApp()
+
+        val requestQuery = mutableMapOf("source" to if (installApp) "app" else "appLink")
+
+        if (installApp && config.autoLogin) {
+            requestQuery["auto_login"] = "true"
         }
 
-        val requestQuery = credentials.getOAuthRequest(config.scope)
+        requestQuery.putAll(credentials.getOAuthRequest(config.scope))
 
         val request = Request.Builder()
             .url(config.urlApi.buildUrl("oauth/authorize", requestQuery))
@@ -137,16 +138,25 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
             handler,
             {
                 val jsonObject = it.data.asJSONObject()
-                val redirectUri = jsonObject.optString("redirectUri")
-                if (preCheckRedirect(redirectUri)) {
-                    val exception =
-                        AliyunpanException.CODE_AUTH_REDIRECT_INVALID.buildError("redirectUri is error uri = $redirectUri")
-                    LLogger.log(TAG, "oauth redirectUri error", exception)
-                    onFailure.accept(exception)
-                    return@enqueue
+                val originRedirectUri = jsonObject.optString("redirectUri")
+
+                val redirectUri = if (installApp) {
+                    if (preCheckAppScheme(originRedirectUri)) {
+                        val exception =
+                            AliyunpanException.CODE_AUTH_REDIRECT_INVALID.buildError("redirectUri is error uri = $originRedirectUri")
+                        LLogger.log(TAG, "oauth redirectUri error", exception)
+                        onFailure.accept(exception)
+                        return@enqueue
+                    }
+                    originRedirectUri
+                } else {
+                    val authorizeUri =
+                        originRedirectUri.replace("alipan.com/applink/authorize", "alipan.com/o/oauth/authorize")
+                    "$authorizeUri&source=app_link&deep_link=true"
                 }
 
-                if (startRedirectUri(context, redirectUri)) {
+
+                if (startAppScheme(context, redirectUri)) {
                     LLogger.log(TAG, "oauth redirectUri = $redirectUri")
                     onSuccess.accept(null)
                 } else {
@@ -154,22 +164,23 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
                     LLogger.log(TAG, "oauth redirectUri error", exception)
                     onFailure.accept(exception)
                 }
+
             }, {
                 LLogger.log(TAG, "oauth request failed", it)
                 onFailure.accept(it)
             })
     }
 
-    private fun preCheckRedirect(redirectUri: String): Boolean {
-        if (redirectUri.isEmpty()) {
+    private fun preCheckAppScheme(appUri: String): Boolean {
+        if (appUri.isEmpty()) {
             return false
         }
-        return !redirectUri.startsWith("smartdrive")
+        return !appUri.startsWith("smartdrive")
     }
 
-    private fun startRedirectUri(context: Context, redirectUri: String): Boolean {
+    private fun startAppScheme(context: Context, appUri: String): Boolean {
         try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(redirectUri))
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(appUri))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         } catch (e: Exception) {
@@ -180,9 +191,14 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
 
     override fun fetchToken(activity: Activity) {
         val intent = activity.intent
-        val callbackCode = intent.getStringExtra(CALLBACK_CODE)
-        val callbackError = intent.getStringExtra(CALLBACK_ERROR)
-        fetchToken(callbackCode, callbackError)
+
+        val data = intent.data
+        if (data != null) {
+            fetchToken(data.getQueryParameter(CALLBACK_CODE), data.getQueryParameter(CALLBACK_ERROR))
+        } else {
+            fetchToken(intent.getStringExtra(CALLBACK_CODE), intent.getStringExtra(CALLBACK_ERROR))
+        }
+
         activity.finish()
     }
 

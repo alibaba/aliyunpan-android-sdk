@@ -40,7 +40,19 @@
         <activity
             android:name=".ypauth.YPAuthActivity"
             android:exported="true"
-            android:launchMode="singleTask" />
+            android:launchMode="singleTask">
+
+            <!--   H5授权回调    -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="ypauth${ypappid}" />
+            </intent-filter>
+
+        </activity>
 
     </application>
 

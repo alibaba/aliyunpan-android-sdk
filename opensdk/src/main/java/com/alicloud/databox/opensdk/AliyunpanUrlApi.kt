@@ -12,7 +12,7 @@ interface AliyunpanUrlApi {
 
     companion object {
 
-        private const val DEFAULT_API = "openapi.alipan.com"
+        private const val DEFAULT_API = BuildConfig.BASE_URL
 
         private const val DEFAULT_SCHEME = "https"
 

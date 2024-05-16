@@ -12,7 +12,8 @@ class AliyunpanClientConfig private constructor(
     internal val scope: String,
     internal val urlApi: AliyunpanUrlApi,
     internal val credentials: AliyunpanCredentials,
-    internal val downloadFolderPath: String
+    internal val downloadFolderPath: String,
+    internal val autoLogin: Boolean
 ) : HttpHeaderInterceptor.HttpHeaderConfig {
 
     private val userAgent: String by lazy {
@@ -75,6 +76,8 @@ class AliyunpanClientConfig private constructor(
 
         private var downloadFolderPath: String = ""
 
+        private var autoLogin = false
+
         constructor(context: Context, appId: String) {
             this.context = context.applicationContext
             this.appId = appId
@@ -109,13 +112,20 @@ class AliyunpanClientConfig private constructor(
          */
         fun downFolder(downloadFolder: File) = apply { this.downloadFolderPath = downloadFolder.absolutePath }
 
+        /**
+         * Auto login
+         * 只对H5授权有效
+         * true 表示已授权后，后续无需用户主动点击授权。默认 false
+         */
+        fun autoLogin() = apply { this.autoLogin = true }
+
         fun build(): AliyunpanClientConfig {
 
             val aliyunpanTokenServer = tokenServer
-            val credentials = if (aliyunpanTokenServer == null) {
-                AliyunpanPKCECredentials(context, appId, identifier)
-            } else {
+            val credentials = if (aliyunpanTokenServer != null) {
                 AliyunpanServerCredentials(context, appId, identifier, aliyunpanTokenServer)
+            } else {
+                AliyunpanPKCECredentials(context, appId, identifier)
             }
 
             return AliyunpanClientConfig(
@@ -123,11 +133,9 @@ class AliyunpanClientConfig private constructor(
                 scopes.joinToString(SCOPE_SEPARATOR),
                 urlApi,
                 credentials,
-                downloadFolderPath
+                downloadFolderPath,
+                autoLogin
             )
-        }
-
-        companion object {
         }
     }
 }

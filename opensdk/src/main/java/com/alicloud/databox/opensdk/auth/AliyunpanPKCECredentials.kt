@@ -48,7 +48,6 @@ internal class AliyunpanPKCECredentials(
             "scope" to scope,
             "redirect_uri" to "oob",
             "response_type" to "code",
-            "source" to "app",
             "code_challenge" to getCodeChallenge(),
             "code_challenge_method" to getCodeChallengeMethod(),
         )

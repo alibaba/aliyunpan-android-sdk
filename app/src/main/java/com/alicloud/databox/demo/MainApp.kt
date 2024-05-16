@@ -33,7 +33,7 @@ class MainApp : Application() {
 
                 //登录取消
                 AliyunpanAction.NOTIFY_LOGIN_CANCEL -> {
-                    Toast.makeText(context, "授权取消", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "授权取消 message=$message", Toast.LENGTH_SHORT).show()
                 }
 
                 //登录失败

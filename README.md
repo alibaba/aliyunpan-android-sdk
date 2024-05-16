@@ -31,7 +31,7 @@ import com.alicloud.databox.opensdk.AliyunpanClientConfig
 
 
 fun initApp(context: Context) {
-        val config = AliyunpanClientConfig.Builder(context, "app_key")
+        val config = AliyunpanClientConfig.Builder(context, "app_id")
             .build()
         // init client
         val aliyunpanClient = AliyunpanClient.init(config)
@@ -47,7 +47,7 @@ import com.alicloud.databox.opensdk.AliyunpanClient
 import com.alicloud.databox.opensdk.AliyunpanClientConfig
 import com.alicloud.databox.opensdk.AliyunpanTokenServer
 
-val config = AliyunpanClientConfig.Builder(context, "app_key")
+val config = AliyunpanClientConfig.Builder(context, "app_id")
             .tokenServer(object : AliyunpanTokenServer {
                 // implement some one
             })
@@ -79,7 +79,7 @@ import com.alicloud.databox.opensdk.kotlin.AliyunpanClient
 
 fun initApp(context: Context) {
         // config
-        val config = AliyunpanClientConfig.Builder(context, "app_key")
+        val config = AliyunpanClientConfig.Builder(context, "app_id")
             .build()
         // init client
         val aliyunpanClient = AliyunpanClient.init(config)
