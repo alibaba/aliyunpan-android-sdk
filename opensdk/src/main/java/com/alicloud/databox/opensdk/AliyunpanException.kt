@@ -7,7 +7,6 @@ open class AliyunpanException(open val code: String, override val message: Strin
 
     companion object {
 
-        const val CODE_APP_NOT_INSTALL = "AppNotInstall"
         const val CODE_AUTH_REDIRECT_INVALID = "AuthRedirectInvalid"
         const val CODE_AUTH_REDIRECT_ERROR = "AuthRedirectError"
         const val CODE_AUTH_QRCODE_ERROR = "AuthQRCodeError"

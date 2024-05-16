@@ -46,7 +46,6 @@ internal class AliyunpanServerCredentials(
             "scope" to scope,
             "redirect_uri" to "oob",
             "response_type" to "code",
-            "source" to "app",
         )
     }
 

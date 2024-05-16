@@ -4,6 +4,12 @@ plugins {
     id 'maven-publish'
 }
 
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
 android {
     namespace 'com.alicloud.databox.opensdk'
     compileSdk 34
@@ -13,7 +19,8 @@ android {
 
         consumerProguardFiles "consumer-rules.pro"
 
-        buildConfigField 'String', 'VERSION', '"' + String.valueOf("0.1.7") + '"'
+        buildConfigField 'String', 'VERSION', '"' + localProperties.getProperty('sdk_version', "0.0.0") + '"'
+        buildConfigField 'String', 'BASE_URL', '"' + localProperties.getProperty('app_url', "openapi.alipan.com") + '"'
     }
 
     buildFeatures {
