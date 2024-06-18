@@ -123,7 +123,7 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
 
         val requestQuery = mutableMapOf("source" to if (installApp) "app" else "appLink")
 
-        if (installApp && config.autoLogin) {
+        if (!installApp && config.autoLogin) {
             requestQuery["auto_login"] = "true"
         }
 

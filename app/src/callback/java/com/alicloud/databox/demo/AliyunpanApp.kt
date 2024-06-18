@@ -16,6 +16,7 @@ object AliyunpanApp {
         val config = AliyunpanClientConfig.Builder(context, BuildConfig.APP_ID)
             // 云盘上传文件 需要写权限
             .appendScope(AliyunpanClientConfig.SCOPE_FILE_WRITE)
+            .autoLogin()
             .downFolder(
                 File(
                     Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
