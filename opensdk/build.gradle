@@ -19,7 +19,7 @@ android {
 
         consumerProguardFiles "consumer-rules.pro"
 
-        buildConfigField 'String', 'VERSION', '"' + localProperties.getProperty('sdk_version', "0.0.0") + '"'
+        buildConfigField 'String', 'VERSION', '"' + localProperties.getProperty('sdk_version', "0.2.2") + '"'
         buildConfigField 'String', 'BASE_URL', '"' + localProperties.getProperty('app_url', "openapi.alipan.com") + '"'
     }
 
