@@ -58,8 +58,8 @@ class AliyunpanClientConfig private constructor(
      * App level
      * 应用分级
      * 更多请查看 https://www.yuque.com/aliyundrive/zpfszx/gogo34oi2gy98w5d#jOd5t
-     * @property downloadTaskLimit
-     * @property downloadUrlExpireSec
+     * @property downloadTaskLimit 下载并发并发数
+     * @property downloadUrlExpireSec 下载链接有效期
      * @constructor Create empty App level
      */
     enum class AppLevel(val downloadTaskLimit: Int, val downloadUrlExpireSec: Int) {

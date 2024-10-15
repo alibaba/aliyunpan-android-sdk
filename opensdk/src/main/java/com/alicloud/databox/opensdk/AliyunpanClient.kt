@@ -339,6 +339,7 @@ class AliyunpanClient private constructor(private val config: AliyunpanClientCon
      *
      * @param driveId
      * @param fileId
+     * @param expireSec 下载地址过期时间 单位秒 默认900秒
      * @param onSuccess
      * @param onFailure
      */
