@@ -122,8 +122,20 @@ internal object OKHttpHelper {
                 randomAccessFile.flushAndSync()
             } else {
                 val errorBodyString = responseBody?.string()
-                if (code == 403 && errorBodyString != null && errorBodyString.contains("Request has expired.")) {
-                    throw AliyunpanUrlExpiredException(AliyunpanException.CODE_DOWNLOAD_ERROR, "request has expired")
+                if (code == 403 && errorBodyString != null) {
+                    if (errorBodyString.contains("Request has expired")) {
+                        throw AliyunpanUrlExpiredException(
+                            AliyunpanException.CODE_DOWNLOAD_ERROR,
+                            "request has expired"
+                        )
+                    } else if (errorBodyString.contains("ExceedMaxConcurrency")) {
+                        throw AliyunpanExceedMaxConcurrencyException(
+                            AliyunpanException.CODE_DOWNLOAD_ERROR,
+                            "exceed max concurrency"
+                        )
+                    } else {
+                        throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("forbidden")
+                    }
                 } else {
                     throw AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("download not success")
                 }

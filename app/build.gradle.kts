@@ -68,7 +68,7 @@ android {
 
 dependencies {
     implementation(project(":opensdk"))
-//    implementation("com.github.alibaba:aliyunpan-android-sdk:v0.2.2")
+//    implementation("com.github.alibaba:aliyunpan-android-sdk:v0.2.3")
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
     implementation("com.github.bumptech.glide:glide:4.14.2")
     implementation("androidx.core:core-ktx:1.7.0")
@@ -77,4 +77,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.5")
     implementation("androidx.navigation:navigation-ui-ktx:2.7.5")
+
+    // 权限请求框架：https://github.com/getActivity/XXPermissions
+    implementation("com.github.getActivity:XXPermissions:20.0")
 }

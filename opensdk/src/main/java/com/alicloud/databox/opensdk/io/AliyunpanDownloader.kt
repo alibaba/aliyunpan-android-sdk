@@ -1,10 +1,12 @@
 package com.alicloud.databox.opensdk.io
 
 import com.alicloud.databox.opensdk.AliyunpanClient
+import com.alicloud.databox.opensdk.AliyunpanClientConfig
 import com.alicloud.databox.opensdk.AliyunpanException
 import com.alicloud.databox.opensdk.AliyunpanException.Companion.buildError
 import com.alicloud.databox.opensdk.Consumer
 import com.alicloud.databox.opensdk.LLogger
+import com.alicloud.databox.opensdk.http.AliyunpanExceedMaxConcurrencyException
 import com.alicloud.databox.opensdk.http.AliyunpanUrlExpiredException
 import com.alicloud.databox.opensdk.http.OKHttpHelper.download
 import com.alicloud.databox.opensdk.scope.AliyunpanFileScope
@@ -12,8 +14,8 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
+import kotlin.math.min
 
 /**
  * Aliyunpan downloader
@@ -24,7 +26,11 @@ import java.util.concurrent.Future
  * @property downloadFolderPath
  * @constructor Create empty Aliyunpan downloader
  */
-internal class AliyunpanDownloader(client: AliyunpanClient, private val downloadFolderPath: String) :
+internal class AliyunpanDownloader(
+    client: AliyunpanClient,
+    private val downloadFolderPath: String,
+    private val appLevel: AliyunpanClientConfig.AppLevel,
+) :
     AliyunpanIO<AliyunpanDownloader.DownloadTask>(client) {
 
     /**
@@ -32,14 +38,10 @@ internal class AliyunpanDownloader(client: AliyunpanClient, private val download
      * 最大并行下载任务 线程池
      */
     private val downloadGroupExecutor =
-        buildThreadGroupExecutor(DEFAULT_MAX_DOWNLOAD_TASK_RUNNING_SIZE, "download-group")
+        buildThreadGroupExecutor(DEFAULT_DOWNLOAD_TASK_SIZE, "download-group")
 
-    private val downloadSubGroupTreadLocal = object : ThreadLocal<ExecutorService>() {
-
-        override fun initialValue(): ExecutorService {
-            return buildThreadGroupExecutor(DEFAULT_MAX_DOWNLOAD_SUB_RUNNING_SIZE, "download-sub-group")
-        }
-    }
+    private val downloadGroupTaskExecutor =
+        buildThreadGroupExecutor(appLevel.downloadTaskLimit, "download-task")
 
     init {
         LLogger.log(TAG, "AliyunpanDownloader init")
@@ -96,7 +98,7 @@ internal class AliyunpanDownloader(client: AliyunpanClient, private val download
                     return@send
                 }
 
-                val validExpireSec = expireSec ?: DownloadTask.DEFAULT_EXPIRE_SECONDS
+                val validExpireSec = expireSec ?: appLevel.downloadUrlExpireSec
 
                 LLogger.log(TAG, "buildDownload success")
                 val downloadTask = DownloadTask(
@@ -131,10 +133,7 @@ internal class AliyunpanDownloader(client: AliyunpanClient, private val download
     ): Future<*> {
         return downloadGroupExecutor.submit {
 
-            if (downloadTask.isCancel()) {
-                postAbort(downloadTask)
-                return@submit
-            }
+            if (checkCancel(downloadTask)) return@submit
 
             // 前置检查 是否有已经下载文件
             try {
@@ -171,7 +170,7 @@ internal class AliyunpanDownloader(client: AliyunpanClient, private val download
             // 创建下载临时文件
             val downloadTempFile = createDownloadTempFile(downloadTask)
             // 计算分片
-            val allChunkList = lastAllChunkList ?: buildChunkList(downloadTask.fileSize)
+            val allChunkList = lastAllChunkList ?: buildChunkList(downloadTask.fileSize, MAX_CHUNK_COUNT)
 
             val doneChunkSet = mutableSetOf<TaskChunk>()
 
@@ -179,49 +178,22 @@ internal class AliyunpanDownloader(client: AliyunpanClient, private val download
                 doneChunkSet.addAll(lastDoneChunkSet)
             }
 
-            var completedSize = if (doneChunkSet.isEmpty()) 0 else doneChunkSet.sumOf { it.chunkSize }
-
-            postRunning(downloadTask, completedSize, downloadTask.fileSize)
+            postRunning(downloadTask, sumOfCompletedSize(doneChunkSet), downloadTask.fileSize)
 
             // 计算未完成分片
-            val unDoneChunkList = if (lastDoneChunkSet.isNullOrEmpty()) {
-                allChunkList
+            var unDoneChunkList = if (doneChunkSet.isEmpty()) {
+                allChunkList.toMutableList()
             } else {
-                allChunkList.filterNot { lastDoneChunkSet.contains(it) }
+                allChunkList.filterNot { doneChunkSet.contains(it) }
             }
-
-            val executorService = downloadSubGroupTreadLocal.get()
-
-            if (executorService == null) {
-                postFailed(downloadTask, AliyunpanException.CODE_DOWNLOAD_ERROR.buildError("executorService is null"))
-                return@submit
-            }
-
-            // 构造本次 下载分片任务集合
-            val tasks =
-                unDoneChunkList.map { DownloadRecursiveTask(downloadTask, it, downloadTempFile) }
 
             try {
-                // 下载任务分组
-                val taskGroup = tasks.chunked(DEFAULT_TASK_GROUP_CHUNK_SIZE)
+                var retryTimes = 6
+                while (unDoneChunkList.isNotEmpty() && retryTimes > 0) {
+                    runDownloadTask(downloadTask, downloadTempFile, doneChunkSet, unDoneChunkList)
 
-                for (taskList in taskGroup) {
-
-                    // 小分组提交 避免全量任务过多
-                    val joinTasks = taskList.map { executorService.submit(it) }
-
-                    for (joinTask in joinTasks) {
-                        val doneChunk = joinTask.get()
-                        completedSize += doneChunk.chunkSize
-                        doneChunkSet.add(doneChunk)
-
-                        postRunning(downloadTask, completedSize, downloadTask.fileSize)
-
-                        if (downloadTask.isCancel()) {
-                            postAbort(downloadTask)
-                            return@submit
-                        }
-                    }
+                    unDoneChunkList = unDoneChunkList.filterNot { doneChunkSet.contains(it) }
+                    retryTimes--
                 }
             } catch (e: Exception) {
                 if (e is ExecutionException) {
@@ -239,6 +211,7 @@ internal class AliyunpanDownloader(client: AliyunpanClient, private val download
                         }
 
                         is IOException -> {
+                            // io异常
                             postFailed(downloadTask, throwable)
                             return@submit
                         }
@@ -267,6 +240,66 @@ internal class AliyunpanDownloader(client: AliyunpanClient, private val download
                 postNext(downloadTask, allChunkList, doneChunkSet)
             }
         }
+    }
+
+    private fun runDownloadTask(
+        downloadTask: DownloadTask,
+        downloadTempFile: File,
+        doneChunkSet: MutableSet<TaskChunk>,
+        unDoneChunkList: List<TaskChunk>
+    ) {
+        // 构造本次 下载分片任务集合
+        val tasks = unDoneChunkList.map { DownloadRecursiveTask(downloadTask, it, downloadTempFile) }
+
+        var taskChunkSize = 1
+        val taskIterator = tasks.iterator()
+        while (taskIterator.hasNext()) {
+            val taskChunk = ArrayList<Callable<TaskChunk>>(taskChunkSize)
+            repeat(taskChunkSize) {
+                if (taskIterator.hasNext()) {
+                    taskChunk.add(taskIterator.next())
+                }
+            }
+
+            val futures = taskChunk.map { downloadGroupTaskExecutor.submit(it) }
+
+            for (taskChunkFuture in futures) {
+                val doneChunk = try {
+                    taskChunkFuture.get()
+                } catch (e: ExecutionException) {
+                    if (e.cause is AliyunpanExceedMaxConcurrencyException) {
+                        null
+                    } else {
+                        throw e
+                    }
+                }
+
+                if (checkCancel(downloadTask)) throw ExecutionException(InterruptedException("download is cancel"))
+
+                if (doneChunk != null) {
+                    doneChunkSet.add(doneChunk)
+                    postRunning(downloadTask, sumOfCompletedSize(doneChunkSet), downloadTask.fileSize)
+                }
+            }
+
+            if (checkCancel(downloadTask)) throw ExecutionException(InterruptedException("download is cancel"))
+
+            // 队列空 递增任务分片数
+            if (downloadGroupTaskExecutor.queue.isEmpty()) {
+                taskChunkSize = min(downloadGroupTaskExecutor.corePoolSize, taskChunkSize + 1)
+            }
+        }
+    }
+
+    private fun sumOfCompletedSize(doneChunkSet: MutableSet<TaskChunk>) =
+        if (doneChunkSet.isEmpty()) 0 else doneChunkSet.sumOf { it.chunkSize }
+
+    private fun checkCancel(downloadTask: DownloadTask): Boolean {
+        if (downloadTask.isCancel()) {
+            postAbort(downloadTask)
+            return true
+        }
+        return false
     }
 
     private fun fetchDownloadUrl(downloadTask: DownloadTask): String {
@@ -352,13 +385,27 @@ internal class AliyunpanDownloader(client: AliyunpanClient, private val download
                 throw InterruptedException("download is cancel")
             }
 
-            client.getOkHttpInstance()
-                .download(
-                    downloadValidUrl,
-                    taskChunk.chunkStart,
-                    taskChunk.chunkStart + taskChunk.chunkSize,
-                    downloadTempFile
-                )
+            LLogger.log(TAG, "start download $downloadValidUrl")
+            try {
+                client.getOkHttpInstance()
+                    .download(
+                        downloadValidUrl,
+                        taskChunk.chunkStart,
+                        taskChunk.chunkStart + taskChunk.chunkSize,
+                        downloadTempFile
+                    )
+            } catch (e: Exception) {
+                if (e is AliyunpanExceedMaxConcurrencyException) {
+                    // 下载限流 是已知的执行异常
+                    Thread.sleep(500)
+                    if (downloadTask.isCancel()) {
+                        throw InterruptedException("download is cancel")
+                    }
+                    Thread.sleep(500)
+                }
+                throw e
+            }
+
             return taskChunk
         }
     }
@@ -401,22 +448,19 @@ internal class AliyunpanDownloader(client: AliyunpanClient, private val download
             }
             return downloadUrl
         }
-
-        companion object {
-
-            internal const val DEFAULT_EXPIRE_SECONDS = 900
-        }
     }
 
     companion object {
 
         private const val TAG = "AliyunpanDownloader"
 
-        private const val DEFAULT_MAX_DOWNLOAD_TASK_RUNNING_SIZE = 2
+        /**
+         * Max Chunk Count
+         * 最大 分片数
+         */
+        internal const val MAX_CHUNK_COUNT = 10000
 
-        private const val DEFAULT_MAX_DOWNLOAD_SUB_RUNNING_SIZE = 3
-
-        private const val DEFAULT_TASK_GROUP_CHUNK_SIZE = DEFAULT_MAX_DOWNLOAD_SUB_RUNNING_SIZE * 3
+        private const val DEFAULT_DOWNLOAD_TASK_SIZE = 2
     }
 }
 

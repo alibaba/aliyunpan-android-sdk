@@ -9,6 +9,7 @@ import java.io.File
 
 class AliyunpanClientConfig private constructor(
     internal val context: Context,
+    internal val appLevel: AppLevel,
     internal val scope: String,
     internal val urlApi: AliyunpanUrlApi,
     internal val credentials: AliyunpanCredentials,
@@ -53,6 +54,31 @@ class AliyunpanClientConfig private constructor(
         private const val SCOPE_SEPARATOR = ","
     }
 
+    /**
+     * App level
+     * 应用分级
+     * 更多请查看 https://www.yuque.com/aliyundrive/zpfszx/gogo34oi2gy98w5d#jOd5t
+     * @property downloadTaskLimit
+     * @property downloadUrlExpireSec
+     * @constructor Create empty App level
+     */
+    enum class AppLevel(val downloadTaskLimit: Int, val downloadUrlExpireSec: Int) {
+        /**
+         * 普通应用（默认配置）
+         */
+        DEFAULT(3, 15 * 60),
+
+        /**
+         * 认证应用
+         */
+        APPROVAL(6, 4 * 60 * 60),
+
+        /**
+         * 风险应用
+         */
+        RISK(2, 15 * 60)
+    }
+
     class Builder {
 
         private val context: Context
@@ -69,6 +95,12 @@ class AliyunpanClientConfig private constructor(
          * 默认的权限域
          */
         private var scopes: List<String> = arrayListOf(SCOPE_USER_BASE, SCOPE_FILE_READ)
+
+        /**
+         * App level
+         * 应用分级，默认普通
+         */
+        private var appLevel: AppLevel = AppLevel.DEFAULT
 
         private val urlApi = AliyunpanUrlApi.getUriApi()
 
@@ -93,6 +125,8 @@ class AliyunpanClientConfig private constructor(
         fun scope(scopes: List<String>) = apply { this.scopes = scopes }
 
         fun appendScope(scope: String) = apply { this.scopes = this.scopes.toMutableList().also { it.add(scope) } }
+
+        fun appLevel(appLevel: AppLevel) = apply { this.appLevel = appLevel }
 
         fun setIdentifier(identifier: String) = apply { this.identifier = identifier }
 
@@ -130,6 +164,7 @@ class AliyunpanClientConfig private constructor(
 
             return AliyunpanClientConfig(
                 context,
+                appLevel,
                 scopes.joinToString(SCOPE_SEPARATOR),
                 urlApi,
                 credentials,

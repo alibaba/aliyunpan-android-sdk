@@ -3,12 +3,16 @@ package com.alicloud.databox.demo
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.alicloud.databox.demo.ViewHelper.appendWithTime
 import com.alicloud.databox.demo.databinding.ActivityTaskBinding
 import com.alicloud.databox.demo.databinding.IncludeTaskBinding
 import com.alicloud.databox.opensdk.io.BaseTask
+import com.hjq.permissions.OnPermissionCallback
+import com.hjq.permissions.Permission
+import com.hjq.permissions.XXPermissions
 
 class UploadActivity : AppCompatActivity() {
 
@@ -34,7 +38,24 @@ class UploadActivity : AppCompatActivity() {
     }
 
     private fun pickFile() {
-        getContent.launch("*/*")
+        val context = this
+        val permissions = listOf(Permission.READ_MEDIA_IMAGES, Permission.READ_MEDIA_VIDEO, Permission.READ_MEDIA_AUDIO)
+        if (XXPermissions.isGranted(context, permissions)) {
+            getContent.launch("*/*")
+        } else {
+            XXPermissions.with(context)
+                .permission(permissions)
+                .request(object : OnPermissionCallback {
+                    override fun onGranted(permissions: MutableList<String>, allGranted: Boolean) {
+                        Toast.makeText(context, "获取权限成功选择上传文件", Toast.LENGTH_SHORT).show()
+                        getContent.launch("*/*")
+                    }
+
+                    override fun onDenied(permissions: MutableList<String>, doNotAskAgain: Boolean) {
+                        Toast.makeText(context, "获取权限失败,无法继续上传文件", Toast.LENGTH_SHORT).show()
+                    }
+                })
+        }
     }
 
     private fun startUploadFile(filePath: String?) {

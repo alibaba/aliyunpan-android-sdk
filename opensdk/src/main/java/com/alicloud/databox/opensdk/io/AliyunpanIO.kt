@@ -102,24 +102,18 @@ internal abstract class AliyunpanIO<T : BaseTask>(protected val client: Aliyunpa
         internal const val SUPPORT_FILE_TYPE = "file"
 
         /**
-         * Max Chunk Count
-         * 最大 分片数
-         */
-        internal const val MAX_CHUNK_COUNT = 10000
-
-        /**
          * Default Max Chunk Size
          * 最大 分片size
          */
         internal const val MAX_CHUNK_SIZE = 2 * 1024 * 1024L
 
-        internal fun buildChunkList(size: Long): List<TaskChunk> {
+        internal fun buildChunkList(size: Long, maxChunkSize: Int): List<TaskChunk> {
             if (size <= MAX_CHUNK_SIZE) {
                 return listOf(TaskChunk(0, 0, size))
             }
             val taskChunks = arrayListOf<TaskChunk>()
 
-            val fixedChunkSize = max(MAX_CHUNK_SIZE, size / MAX_CHUNK_COUNT)
+            val fixedChunkSize = max(MAX_CHUNK_SIZE, size / maxChunkSize)
             val index = (size / fixedChunkSize).toInt()
             val remainChunkSize = size % fixedChunkSize
             for (i in 0 until index) {

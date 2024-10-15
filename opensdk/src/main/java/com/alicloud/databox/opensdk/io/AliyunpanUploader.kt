@@ -83,7 +83,7 @@ internal class AliyunpanUploader(client: AliyunpanClient, private val credential
 
         val fileSize = localFile.length()
         val validNeedPreHash = needPreHash ?: checkNeedPreHash(fileSize)
-        val chunkList = buildChunkList(fileSize)
+        val chunkList = buildChunkList(fileSize, MAX_CHUNK_COUNT)
 
         // 运行中 去重
         for (uploadTask in runningTaskMap.keys()) {
@@ -196,7 +196,7 @@ internal class AliyunpanUploader(client: AliyunpanClient, private val credential
             }
 
             // 计算分片
-            val allChunkList = lastAllChunkList ?: buildChunkList(uploadTask.fileSize)
+            val allChunkList = lastAllChunkList ?: buildChunkList(uploadTask.fileSize, MAX_CHUNK_COUNT)
 
             val doneChunkSet = mutableSetOf<TaskChunk>()
 
@@ -487,6 +487,12 @@ internal class AliyunpanUploader(client: AliyunpanClient, private val credential
         const val UPLOAD_CHECK_NAME_MODE_REFUSE = "refuse" // 同名不创建
         const val UPLOAD_CHECK_NAME_MODE_IGNORE = "ignore" // 同名文件可创建
         const val DEFAULT_UPLOAD_CHECK_NAME_MODE = UPLOAD_CHECK_NAME_MODE_AUTO_RENAME
+
+        /**
+         * Max Chunk Count
+         * 最大 分片数
+         */
+        internal const val MAX_CHUNK_COUNT = 1000
 
         private const val PRE_HASH_SIZE_THRESHOLD = 500 * 1024L
 
